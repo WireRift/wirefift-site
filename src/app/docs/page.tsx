@@ -17,7 +17,7 @@ export default function Docs() {
           get WireRift running your way.
         </p>
       </header>
-      <div className="brand-grid">
+      <div className="resource-grid">
         {docs.map((doc) => (
           <Link
             key={doc.slug}

@@ -283,8 +283,8 @@
   display: grid;
   grid-template-columns: 8rem minmax(0, 1fr) 13.5rem;
   align-items: center;
-  gap: 2.5rem;
-  padding: 2.75rem;
+  gap: var(--layout-gap);
+  padding: var(--panel-space);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 1rem;
@@ -435,21 +435,9 @@
   color: var(--muted);
 }
 
-@media (min-width: 1920px) {
+@media (min-width: 1280px) {
   .studio-card {
-    grid-template-columns: 9rem minmax(0, 1.25fr) minmax(18rem, 1fr);
-    gap: 2.25rem;
-  }
-  .studio-copy h2 {
-    font-size: 3.25rem;
-  }
-  .studio-copy > p {
-    font-size: 0.9375rem;
-    max-width: 33rem;
-  }
-  .studio-copy .eyebrow,
-  .studio-signature {
-    font-size: 0.625rem;
+    grid-template-columns: 7rem minmax(0, 1.1fr) minmax(20rem, 1fr);
   }
   .studio-explore {
     font-size: 0.8125rem;

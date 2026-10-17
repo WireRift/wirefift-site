@@ -1,14 +1,25 @@
 # Validation
 
-Verified on 2026-10-17 using Node.js 24.13.0 on Windows. The directory was initially empty; all tracked website files belong to this implementation.
+Updated on 2026-10-18 using Node.js 24.13.0 on Windows. This layout revision started from clean commit `5100b3c`.
 
 ## Local result
 
-- `npm run format` — 30 source/config/test files checked; no remaining diagnostics.
+- `npm run format` — 33 source/config/test files checked; no remaining diagnostics.
 - `npm run build` — Next.js 16.4.2 production export succeeded; 22 generated entries, including the 404, sitemap and robots assets.
 - `npm run typecheck` — passed.
-- `npm test` — 16 Chromium tests passed; zero skips or retries.
-- Manual browser review — homepage on desktop, 390px mobile, and dark appearance at 3840×2160. SVG shapes remain vectors, with explicit reduced-motion fallbacks.
+- `npm test` — 22 Chromium tests passed; zero skips or retries.
+- Responsive matrix — 375, 768, 1024, 1440, 1920 and 2560px across home, documentation index, API reference, downloads, brand assets and changelog. Header, terminal, main and footer edges align; pages stay inside the viewport; prose is narrower than data panels; brand cards occupy three columns on wide screens. Desktop typography no longer scales the entire root.
+
+| Viewport | Shared container | Side gutter |
+| --- | --- | --- |
+| 375px | 343px | 16px |
+| 768px | about 717px | about 26px |
+| 1024px | about 956px | about 34px |
+| 1440px | 1344px | 48px |
+| 1920px | 1728px | 96px |
+| 2560px | 1728px | 416px |
+
+The new wide-layout assertions failed on the starting export: 1920px rendered a 1408px frame, while 2560px rendered an oversized 1840px frame. Both pass on the revised layout. Screenshots are generated in ignored `.qa/layout-*.png` files for visual inspection.
 
 The suite exercises selected commands and clipboard success/failure, search results and empty results, inspector selection/replay, platform and CPU download mapping, persistent themes and blocked storage, keyboard dismissal, automated WCAG A/AA checks in both appearances, reduced motion, 360/390/768/1440/3840px overflow checks across four page types, every document route, internal links and the 404 response.
 
@@ -20,4 +31,4 @@ Product content was checked against WireRift's current upstream README, Go modul
 
 ## Deployment
 
-The GitHub Actions workflow runs lint, build, type check and the same 16 browser tests before deploying `out/`. The live workflow result and custom-domain HTTPS status are verified separately after publication.
+The GitHub Actions workflow runs lint, build, type check and the same 22 browser tests before deploying `out/`. The live workflow result and custom-domain HTTPS status are verified separately after publication.

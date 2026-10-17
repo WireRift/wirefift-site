@@ -23,6 +23,8 @@ npm test
 
 The test runner starts the actual `out/` export on a dedicated port (47861) and refuses to reuse another running server. It checks command selection and clipboard success/failure, documentation search, example request replay, platform/architecture downloads, appearance persistence and storage failure, keyboard controls, WCAG AA automated checks, reduced motion, internal links, and layouts at 360, 390, 768, 1440 and 3840 pixels. These checks do not run an actual WireRift tunnel or certify a physical mobile device.
 
+The shared layout uses `--layout-max` (1728px), fluid `--page-gutter`, `--layout-gap`, `--section-space` and `--panel-space` tokens in `globals.css`. The terminal, header, main sections and footer share the same frame; prose has a separate 72ch measure. Resource and brand grids use three columns from 1280px, two on tablets and one on mobile. `tests/layout.spec.ts` adds a six-page alignment, overflow, title wrapping and readable-prose matrix at 375, 768, 1024, 1440, 1920 and 2560px. Wide layouts do not enlarge the root font size.
+
 ```sh
 node scripts/preview.mjs 3015
 ```
