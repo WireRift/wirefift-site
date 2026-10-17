@@ -2272,6 +2272,7 @@ h1 > span {
   .hero .button {
     font-size: 0.68rem;
     min-height: 2.8rem;
+    padding-inline: 0.85rem;
   }
   .hero-proof {
     font-size: 0.52rem;
@@ -2293,6 +2294,7 @@ h1 > span {
   .art-caption {
     font-size: 0.38rem;
     padding: 1rem 0.2rem;
+    bottom: -1.5rem;
   }
   .protocol-chip {
     font-size: 0.45rem;
