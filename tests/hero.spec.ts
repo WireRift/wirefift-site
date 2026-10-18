@@ -145,7 +145,13 @@ test("reduced motion is static, updates theme and resumes without an animation l
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await observeCanvas(page);
+  const beforeReduced = await page.evaluate(() => window.heroDraws.frames);
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
+  // MediaQueryList change is delivered asynchronously. The scene draws its
+  // static alternative once; measure inactivity after that draw has arrived.
+  await expect
+    .poll(() => page.evaluate(() => window.heroDraws.frames))
+    .toBeGreaterThan(beforeReduced);
   const still = await page.evaluate(() => window.heroDraws.frames);
   const lightColors = await page.evaluate(() => window.heroDraws.colors);
   await page.clock.runFor(2000);
@@ -158,18 +164,20 @@ test("reduced motion is static, updates theme and resumes without an animation l
   await page.getByRole("radio", { name: "Dark", exact: true }).check();
   await page.getByRole("radio", { name: "Dark", exact: true }).press("Escape");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  expect(await page.evaluate(() => window.heroDraws.colors)).not.toEqual(
-    lightColors,
-  );
+  await expect
+    .poll(() => page.evaluate(() => window.heroDraws.colors))
+    .not.toEqual(lightColors);
   const darkStill = await page.evaluate(() => window.heroDraws.frames);
   await page.clock.runFor(2000);
   expect(await page.evaluate(() => window.heroDraws.frames)).toBe(darkStill);
   await page.screenshot({ path: ".qa/hero-reduced-dark.png" });
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.clock.runFor(150);
-  expect(await page.evaluate(() => window.heroDraws.frames)).toBeGreaterThan(
-    darkStill,
-  );
+  await expect
+    .poll(async () => {
+      await page.clock.runFor(100);
+      return page.evaluate(() => window.heroDraws.frames);
+    })
+    .toBeGreaterThan(darkStill);
   // Simulate the browser visibility boundary; other DOM/RAF behavior stays real.
   await page.evaluate(() => {
     Object.defineProperty(document, "hidden", {
@@ -219,7 +227,14 @@ test.describe("high-density display", () => {
       })
       .toBeGreaterThan(offscreen);
     await page.setViewportSize({ width: 3840, height: 2160 });
-    await page.clock.runFor(200);
+    await expect
+      .poll(() =>
+        page.locator(".hero-canvas").evaluate((element) => {
+          const canvas = element as HTMLCanvasElement;
+          return canvas.width * canvas.height;
+        }),
+      )
+      .toBeGreaterThan(3_590_000);
     const resolution = await page
       .locator(".hero-canvas")
       .evaluate((element) => {
