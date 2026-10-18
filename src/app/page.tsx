@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HeroBackground } from "@/components/hero-background";
 import {
   InspectorDemo,
   Quickstart,
@@ -81,51 +82,54 @@ const faqs = [
 export default function Home() {
   return (
     <main id="main">
-      <section className="hero container">
-        <div className="hero-copy">
-          <a
-            className="release-badge"
-            href={`${REPO}/releases/tag/v${VERSION}`}
-          >
-            <span className="status-light" />
-            <strong>v{VERSION}</strong>
-            <span>A little binary. A wide-open world.</span>
-            <ArrowRight size={13} />
-          </a>
-          <h1>
-            Localhost.
-            <br />
-            <span>Meet the world.</span>
-          </h1>
-          <p className="hero-lead">
-            Great things start locally.
-            <br />
-            They don’t have to stay there.
-          </p>
-          <p className="hero-description">
-            Expose your local services through a single Go binary.
-            <br className="desktop-break" /> Open-source tunnels. Your
-            infrastructure. Your rules.
-          </p>
-          <div className="hero-buttons">
-            <Link className="button primary" href="#quickstart">
-              Open your first tunnel <ArrowRight size={17} />
-            </Link>
-            <a className="button secondary" href={REPO}>
-              <Github size={17} />
-              Explore the source <ArrowUpRight size={14} />
+      <section className="hero-stage" data-hero-stage>
+        <HeroBackground />
+        <div className="hero container">
+          <div className="hero-copy">
+            <a
+              className="release-badge"
+              href={`${REPO}/releases/tag/v${VERSION}`}
+            >
+              <span className="status-light" />
+              <strong>v{VERSION}</strong>
+              <span>A little binary. A wide-open world.</span>
+              <ArrowRight size={13} />
             </a>
+            <h1>
+              Localhost.
+              <br />
+              <span>Meet the world.</span>
+            </h1>
+            <p className="hero-lead">
+              Great things start locally.
+              <br />
+              They don’t have to stay there.
+            </p>
+            <p className="hero-description">
+              Expose your local services through a single Go binary.
+              <br className="desktop-break" /> Open-source tunnels. Your
+              infrastructure. Your rules.
+            </p>
+            <div className="hero-buttons">
+              <Link className="button primary" href="#quickstart">
+                Open your first tunnel <ArrowRight size={17} />
+              </Link>
+              <a className="button secondary" href={REPO}>
+                <Github size={17} />
+                Explore the source <ArrowUpRight size={14} />
+              </a>
+            </div>
+            <div className="hero-proof">
+              <span>
+                <i />
+                100% Go
+              </span>
+              <span>Zero dependencies</span>
+              <span>MIT licensed</span>
+            </div>
           </div>
-          <div className="hero-proof">
-            <span>
-              <i />
-              100% Go
-            </span>
-            <span>Zero dependencies</span>
-            <span>MIT licensed</span>
-          </div>
+          <TunnelArt />
         </div>
-        <TunnelArt />
       </section>
       <section
         className="container terminal-section"
