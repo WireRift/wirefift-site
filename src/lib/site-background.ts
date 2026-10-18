@@ -85,7 +85,8 @@ function node<K extends keyof SVGElementTagNameMap>(
 export function createSiteBackground(
   svg: SVGSVGElement,
   foreground: SVGSVGElement,
-  enabled = true,
+  pointerEnabled = true,
+  ambientEnabled = true,
 ) {
   const objectLayer = svg.querySelector<SVGGElement>(".background-objects");
   const links = foreground.querySelector<SVGGElement>(".background-links");
@@ -112,9 +113,9 @@ export function createSiteBackground(
   const traces = trailLayer;
   const reactionLayer = reactions;
   const pointerField = field;
-  // Preference resolution belongs to the shared store. Explicit opt-in can
-  // enable this decorative layer without changing motion elsewhere in the UI.
-  const reduced = { matches: !enabled };
+  // Ambient motion follows the OS preference independently of the mouse toggle.
+  // Explicit pointer opt-in still works without enabling ambient drift.
+  const motionStopped = !ambientEnabled && !pointerEnabled;
   let width = 1;
   let height = 1;
   let mobile = false;
@@ -217,7 +218,7 @@ export function createSiteBackground(
       const speed = BACKGROUND.speed * (0.5 + (i % 5) / 5);
       const reach = BACKGROUND.drift * depth;
       const duration = (TAU / speed) * 1000;
-      const animation = reduced.matches
+      const animation = !ambientEnabled
         ? undefined
         : floating.animate(
             [
@@ -237,13 +238,14 @@ export function createSiteBackground(
         animation.pause();
         animation.currentTime = ((i * 0.381966) % 1) * duration;
       }
-      const reactionAnimation = animation
-        ? echo.animate((animation.effect as KeyframeEffect).getKeyframes(), {
-            duration,
-            iterations: Infinity,
-            easing: "ease-in-out",
-          })
-        : undefined;
+      const reactionAnimation =
+        pointerEnabled && animation
+          ? echo.animate((animation.effect as KeyframeEffect).getKeyframes(), {
+              duration,
+              iterations: Infinity,
+              easing: "ease-in-out",
+            })
+          : undefined;
       if (reactionAnimation) {
         reactionAnimation.pause();
         reactionAnimation.currentTime = ((i * 0.381966) % 1) * duration;
@@ -304,7 +306,7 @@ export function createSiteBackground(
         !disposed &&
         inView &&
         !document.hidden &&
-        !reduced.matches &&
+        ambientEnabled &&
         shape.visible
       ) {
         if (shape.animation.playState !== "running") shape.animation.play();
@@ -432,13 +434,13 @@ export function createSiteBackground(
   function render(dt: number) {
     time += dt;
     const awake = time - activeAt < BACKGROUND.idleAfter;
-    intro = reduced.matches ? 1 : Math.min(1, intro + dt / 1.1);
+    intro = motionStopped ? 1 : Math.min(1, intro + dt / 1.1);
     pointer.strength = mix(
       pointer.strength,
       awake ? pointer.target : 0,
       1 - Math.exp(-dt * (awake && pointer.target ? 10 : 4.5)),
     );
-    scroll = reduced.matches
+    scroll = !ambientEnabled
       ? 0
       : mix(scroll, window.scrollY, 1 - Math.exp(-dt * 6));
     const near: (Point & { distance: number; alpha: number })[] = [];
@@ -472,7 +474,7 @@ export function createSiteBackground(
       }
       if (!shape.visible) {
         shape.element.removeAttribute("display");
-        if (!reduced.matches && inView && !document.hidden)
+        if (ambientEnabled && inView && !document.hidden)
           shape.animation?.play();
       }
       shape.visible = true;
@@ -540,7 +542,7 @@ export function createSiteBackground(
         target.x = 0;
         target.y = 0;
       }
-      if (reduced.matches) {
+      if (!pointerEnabled) {
         shape.offset.x =
           shape.offset.y =
           shape.velocity.x =
@@ -559,7 +561,7 @@ export function createSiteBackground(
       attribute(shape.element, "transform", transform);
       attribute(shape.element, "opacity", number(alpha));
       attribute(shape.reaction, "transform", transform);
-      const reactionAlpha = reduced.matches
+      const reactionAlpha = !pointerEnabled
         ? 0
         : edge * intro * Math.min(0.65, influence * 0.9 + shock * 0.65);
       attribute(shape.reaction, "opacity", number(reactionAlpha));
@@ -583,7 +585,7 @@ export function createSiteBackground(
     near.sort((a, b) => a.distance - b.distance);
     linkNodes.forEach((line, index) => {
       const target = near[index];
-      if (!target || reduced.matches) {
+      if (!target || !pointerEnabled) {
         attribute(line, "display", "none");
         return;
       }
@@ -602,13 +604,13 @@ export function createSiteBackground(
     attribute(
       pointerField,
       "opacity",
-      number(reduced.matches ? 0 : pointer.strength * intro),
+      number(pointerEnabled ? pointer.strength * intro : 0),
     );
     trail = trail.filter((point) => time - point.born < BACKGROUND.trailLife);
     trailNodes.forEach((line, index) => {
       const a = trail[index];
       const b = trail[index + 1];
-      if (!a || !b || reduced.matches) {
+      if (!a || !b || !pointerEnabled) {
         attribute(line, "display", "none");
         return;
       }
@@ -677,7 +679,7 @@ export function createSiteBackground(
     relayNodes.forEach((item, index) => {
       const relay = relays[index];
       const age = relay ? time - relay.born : -1;
-      if (!relay || age < 0 || reduced.matches) {
+      if (!relay || age < 0 || !pointerEnabled) {
         attribute(item.group, "display", "none");
         return;
       }
@@ -747,7 +749,7 @@ export function createSiteBackground(
 
   function tick(now: number) {
     raf = 0;
-    if (disposed || document.hidden || !inView || reduced.matches) return;
+    if (disposed || document.hidden || !inView || motionStopped) return;
     const fps =
       time - activeAt > BACKGROUND.idleAfter
         ? BACKGROUND.fps.idle
@@ -774,13 +776,13 @@ export function createSiteBackground(
             Math.abs(shape.velocity.y) >
           0.01,
       ) ||
-      Math.abs(scroll - window.scrollY) > 0.1
+      (ambientEnabled && Math.abs(scroll - window.scrollY) > 0.1)
     )
       raf = requestAnimationFrame(tick);
     else lastPaint = 0;
   }
   function wake() {
-    if (!raf && !disposed && inView && !document.hidden && !reduced.matches)
+    if (!raf && !disposed && inView && !document.hidden && !motionStopped)
       raf = requestAnimationFrame(tick);
   }
   function playback() {
@@ -799,7 +801,7 @@ export function createSiteBackground(
       for (const shape of shapes) attribute(shape.reaction, "opacity", "0");
       return;
     }
-    if (reduced.matches) {
+    if (motionStopped) {
       leave();
       hideBursts();
       trail = [];
@@ -816,7 +818,7 @@ export function createSiteBackground(
   function move(event: PointerEvent) {
     if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 10)
       down.moved = true;
-    if (reduced.matches || event.pointerType === "touch" || !event.isPrimary) {
+    if (!pointerEnabled || event.pointerType === "touch" || !event.isPrimary) {
       pointer.target = 0;
       return;
     }
@@ -836,7 +838,7 @@ export function createSiteBackground(
     if (
       !event.isPrimary ||
       event.button !== 0 ||
-      reduced.matches ||
+      !pointerEnabled ||
       blocked(event, true) ||
       document.hidden ||
       !inView
@@ -860,7 +862,7 @@ export function createSiteBackground(
       event.button !== 0 ||
       start.moved ||
       performance.now() - start.at > 650 ||
-      reduced.matches ||
+      !pointerEnabled ||
       document.hidden ||
       !inView ||
       blocked(event, true) ||
@@ -922,11 +924,6 @@ export function createSiteBackground(
     shapes = [];
     burstNodes = [];
   }
-  if (!enabled) {
-    // One static render; no observers, input listeners or animation timelines.
-    resize();
-    return dispose;
-  }
   observer = new ResizeObserver(resize);
   // Observe HTML layout, not animated SVG geometry. Rebuild only on real size changes.
   observer.observe(document.documentElement);
@@ -937,24 +934,26 @@ export function createSiteBackground(
   });
   visibility.observe(svg);
   resize();
-  document.addEventListener("pointermove", move, {
-    passive: true,
-    capture: true,
-  });
-  document.addEventListener("pointerdown", press, {
-    passive: true,
-    capture: true,
-  });
-  document.addEventListener("pointerup", release, {
-    passive: true,
-    capture: true,
-  });
-  document.addEventListener("pointercancel", leave, {
-    passive: true,
-    capture: true,
-  });
-  window.addEventListener("pointerout", out, { passive: true });
-  window.addEventListener("blur", leave);
+  if (pointerEnabled) {
+    document.addEventListener("pointermove", move, {
+      passive: true,
+      capture: true,
+    });
+    document.addEventListener("pointerdown", press, {
+      passive: true,
+      capture: true,
+    });
+    document.addEventListener("pointerup", release, {
+      passive: true,
+      capture: true,
+    });
+    document.addEventListener("pointercancel", leave, {
+      passive: true,
+      capture: true,
+    });
+    window.addEventListener("pointerout", out, { passive: true });
+    window.addEventListener("blur", leave);
+  }
   window.addEventListener("scroll", scrolled, { passive: true });
   document.addEventListener("visibilitychange", playback);
   return dispose;

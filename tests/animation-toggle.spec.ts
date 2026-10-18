@@ -12,10 +12,18 @@ const listeners = (page: Page) =>
   page.evaluate(() => window.backgroundListenerCount);
 const liveEffects =
   '.background-burst:not([display="none"]), .background-relay:not([display="none"])';
+const ambientTimes = (page: Page) =>
+  page
+    .locator(".background-drift")
+    .evaluateAll((elements) =>
+      elements.flatMap((element) =>
+        element.getAnimations().map((animation) => animation.currentTime),
+      ),
+    );
 
 test.beforeEach(async ({ page }) => {
   // Count passive capture handlers; React's own non-passive capture handlers
-  // must remain attached when decorative motion is disabled.
+  // must remain attached when pointer effects are disabled.
   await page.addInitScript(() => {
     const add = EventTarget.prototype.addEventListener;
     const remove = EventTarget.prototype.removeEventListener;
@@ -62,7 +70,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("keyboard toggle clears live effects, cancels native animations and removes input listeners", async ({
+test("mouse toggle clears interactions and listeners while ambient motion continues", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -86,10 +94,23 @@ test("keyboard toggle clears live effects, cancels native animations and removes
     ).toBeGreaterThan(0);
     await button(page).focus();
     await button(page).press("Space");
+    await expect
+      .poll(() =>
+        page
+          .locator(".background-drift")
+          .evaluateAll(
+            (elements) =>
+              elements
+                .flatMap((element) => element.getAnimations())
+                .filter((animation) => animation.playState === "running")
+                .length,
+          ),
+      )
+      .toBeGreaterThan(0);
     await expect(
-      page.getByRole("button", { name: "Animasyonları aç", exact: true }),
+      page.getByRole("button", { name: "Fare efektlerini aç", exact: true }),
     ).toHaveAttribute("aria-pressed", "false");
-    await expect(page.getByRole("tooltip")).toHaveText("Animasyonları aç");
+    await expect(page.getByRole("tooltip")).toHaveText("Fare efektlerini aç");
     await expect.poll(() => listeners(page)).toBe(0);
     await expect(page.locator(liveEffects)).toHaveCount(0);
     expect(
@@ -99,6 +120,7 @@ test("keyboard toggle clears live effects, cancels native animations and removes
         ),
       ),
     ).toBe(true);
+    await page.clock.runFor(1500);
     const still = await page
       .locator(".background-motif")
       .evaluateAll((elements) =>
@@ -122,7 +144,26 @@ test("keyboard toggle clears live effects, cancels native animations and removes
           (elements) =>
             elements.flatMap((element) => element.getAnimations()).length,
         ),
+    ).toBeGreaterThan(0);
+    const ambient = await ambientTimes(page);
+    await expect.poll(() => ambientTimes(page)).not.toEqual(ambient);
+    expect(
+      await page
+        .locator(".interaction-drift")
+        .evaluateAll(
+          (elements) =>
+            elements.flatMap((element) => element.getAnimations()).length,
+        ),
     ).toBe(0);
+    await page.evaluate(() => window.scrollTo(0, 700));
+    await page.clock.runFor(2000);
+    expect(
+      await page
+        .locator(".background-motif")
+        .evaluateAll((elements) =>
+          elements.map((element) => element.getAttribute("transform")),
+        ),
+    ).not.toEqual(still);
     for (let i = 0; i < 3; i++) {
       await button(page).press("Enter");
       await expect(button(page)).toHaveAttribute("aria-pressed", "true");
@@ -132,7 +173,7 @@ test("keyboard toggle clears live effects, cancels native animations and removes
     }
     await button(page).press("Enter");
     await expect(
-      page.getByRole("button", { name: "Animasyonları kapat", exact: true }),
+      page.getByRole("button", { name: "Fare efektlerini kapat", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => listeners(page)).toBe(4);
     await button(page).press("Escape");
@@ -175,6 +216,7 @@ test("preference persists through navigation and reload and synchronizes across 
 test("system motion is the first-use default and an explicit choice takes precedence", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await expect(button(page)).toHaveAttribute("aria-pressed", "false");
@@ -196,9 +238,38 @@ test("system motion is the first-use default and an explicit choice takes preced
         (elements) =>
           elements.flatMap((element) => element.getAnimations()).length,
       ),
-  ).toBeGreaterThan(0);
+  ).toBe(0);
+  await page.mouse.click(1408, 500);
+  await expect(page.locator(liveEffects).first()).toBeVisible();
   await page.reload();
   await expect(button(page)).toHaveAttribute("aria-pressed", "true");
+});
+
+test("stored mouse-off keeps ambient motion responsive in both themes", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("wirerift-animations", "off");
+  });
+  await page.goto("/");
+  for (const width of [375, 768, 1024, 1440, 1920, 2560]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.emulateMedia({ colorScheme: width % 2 ? "light" : "dark" });
+    await expect(button(page)).toHaveAttribute("aria-pressed", "false");
+    await expect.poll(() => listeners(page)).toBe(0);
+    await expect(page.locator(".background-drift")).toHaveCount(
+      width <= 760 ? 12 : width >= 1900 ? 42 : 28,
+    );
+    await expect.poll(() => ambientTimes(page)).not.toEqual([]);
+    const before = await ambientTimes(page);
+    await expect.poll(() => ambientTimes(page)).not.toEqual(before);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await expect(page.locator(liveEffects)).toHaveCount(0);
+  }
 });
 
 test("blocked storage keeps the control usable and the mobile target is touch sized", async ({

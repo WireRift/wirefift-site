@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
-import { useBackgroundAnimations } from "@/lib/animation-preference";
+import {
+  useAmbientMotion,
+  usePointerEffects,
+} from "@/lib/animation-preference";
 import { createSiteBackground } from "@/lib/site-background";
 
 /** Sibling viewport layers escape section clipping and local stacking contexts. */
 export function SiteBackground() {
-  const [enabled] = useBackgroundAnimations();
+  const [pointerEnabled] = usePointerEffects();
+  const ambientEnabled = useAmbientMotion();
   const svg = useRef<SVGSVGElement>(null);
   const interaction = useRef<SVGSVGElement>(null);
   const id = useId().replace(/:/g, "");
@@ -15,8 +19,13 @@ export function SiteBackground() {
   const glow = `${id}-glow`;
   useEffect(() => {
     if (svg.current && interaction.current)
-      return createSiteBackground(svg.current, interaction.current, enabled);
-  }, [enabled]);
+      return createSiteBackground(
+        svg.current,
+        interaction.current,
+        pointerEnabled,
+        ambientEnabled,
+      );
+  }, [pointerEnabled, ambientEnabled]);
 
   return (
     <>

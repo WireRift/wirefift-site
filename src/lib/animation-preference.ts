@@ -47,7 +47,22 @@ function setEnabled(enabled: boolean) {
 
 const serverSnapshot = () => false;
 
-export function useBackgroundAnimations() {
+/** Persisted preference controls pointer effects, never ambient motion. */
+export function usePointerEffects() {
   const enabled = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   return [enabled, setEnabled] as const;
+}
+
+function subscribeMotion(notify: () => void) {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", notify);
+  return () => media.removeEventListener("change", notify);
+}
+
+function ambientSnapshot() {
+  return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+export function useAmbientMotion() {
+  return useSyncExternalStore(subscribeMotion, ambientSnapshot, serverSnapshot);
 }

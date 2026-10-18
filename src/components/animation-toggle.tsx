@@ -2,13 +2,13 @@
 
 import { Mouse, MouseOff } from "lucide-react";
 import { useId, useState } from "react";
-import { useBackgroundAnimations } from "@/lib/animation-preference";
+import { usePointerEffects } from "@/lib/animation-preference";
 
 export function AnimationToggle() {
-  const [enabled, setEnabled] = useBackgroundAnimations();
+  const [enabled, setEnabled] = usePointerEffects();
   const tooltip = useId();
   const [dismissed, setDismissed] = useState(false);
-  const label = enabled ? "Animasyonları kapat" : "Animasyonları aç";
+  const label = enabled ? "Fare efektlerini kapat" : "Fare efektlerini aç";
   const Icon = enabled ? Mouse : MouseOff;
   return (
     <div className="animation-control">
