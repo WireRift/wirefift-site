@@ -8,8 +8,19 @@ type Motif = {
   y: number;
   depth: number;
   visible: boolean;
+  phase: number;
+  offset: Point;
+  velocity: Point;
 };
 type Burst = Point & { born: number; variant: number };
+type Relay = {
+  origin: Point;
+  source: number | undefined;
+  target: number;
+  born: number;
+  travel: number;
+  energy: number;
+};
 type Trail = Point & { born: number };
 
 export const BACKGROUND = {
@@ -31,6 +42,16 @@ export const BACKGROUND = {
   maxBursts: { mobile: 3, desktop: 5 },
   burstPackets: 8,
   maxLinks: 3,
+  orbitSpeed: 1.35,
+  maxOffset: { mobile: 85, desktop: 140 },
+  chain: {
+    limit: { mobile: 3, desktop: 6 },
+    distance: { mobile: 180, desktop: 250 },
+    reach: { mobile: 300, desktop: 540 },
+    speed: 650,
+    response: 0.85,
+    decay: 0.58,
+  },
 } as const;
 
 const NS = "http://www.w3.org/2000/svg";
@@ -96,6 +117,21 @@ export function createSiteBackground(
   let shapes: Motif[] = [];
   let bursts: Burst[] = [];
   let trail: Trail[] = [];
+  let relays: Relay[] = [];
+  // Fixed, reusable pool. A click schedules at most two fading generations.
+  const relayLayer = node("g", { class: "background-relays" });
+  const relayNodes = Array.from(
+    { length: BACKGROUND.chain.limit.desktop },
+    () => {
+      const group = node("g", { class: "background-relay", display: "none" });
+      const line = node("path");
+      const pulse = node("circle", { r: "2.5" });
+      group.append(line, pulse);
+      relayLayer.append(group);
+      return { group, line, pulse };
+    },
+  );
+  foreground.append(relayLayer);
   let burstNodes: {
     group: SVGGElement;
     ring: SVGCircleElement;
@@ -124,7 +160,9 @@ export function createSiteBackground(
 
   function hideBursts() {
     bursts = [];
+    relays = [];
     for (const item of burstNodes) item.group.setAttribute("display", "none");
+    for (const item of relayNodes) item.group.setAttribute("display", "none");
   }
   function leave() {
     down = undefined;
@@ -224,6 +262,9 @@ export function createSiteBackground(
           BACKGROUND.margin,
         depth,
         visible: true,
+        phase: 0,
+        offset: { x: 0, y: 0 },
+        velocity: { x: 0, y: 0 },
       };
     });
     objects.replaceChildren(...shapes.map((shape) => shape.element));
@@ -290,6 +331,107 @@ export function createSiteBackground(
     if (element.getAttribute(name) !== value) element.setAttribute(name, value);
   }
 
+  function baseY(shape: Motif) {
+    const span = height + BACKGROUND.margin * 2;
+    return (
+      ((((shape.y +
+        BACKGROUND.margin -
+        scroll * BACKGROUND.scrollParallax * shape.depth) %
+        span) +
+        span) %
+        span) -
+      BACKGROUND.margin
+    );
+  }
+
+  // Exact critically damped spring: smooth momentum at both 30 and 60 fps,
+  // without unstable integration or perpetual per-frame work after settling.
+  function follow(shape: Motif, target: Point, dt: number) {
+    const omega = 11 + shape.depth * 2;
+    const damping = Math.exp(-omega * dt);
+    for (const axis of ["x", "y"] as const) {
+      const delta = shape.offset[axis] - target[axis];
+      const impulse = shape.velocity[axis] + omega * delta;
+      shape.offset[axis] = target[axis] + (delta + impulse * dt) * damping;
+      shape.velocity[axis] =
+        (shape.velocity[axis] - omega * impulse * dt) * damping;
+      if (
+        target[axis] === 0 &&
+        Math.abs(shape.offset[axis]) < 0.025 &&
+        Math.abs(shape.velocity[axis]) < 0.15
+      ) {
+        shape.offset[axis] = 0;
+        shape.velocity[axis] = 0;
+      }
+    }
+  }
+
+  function chain(origin: Point) {
+    const positions = shapes.map((shape) => ({
+      x: shape.x + shape.offset.x,
+      y: baseY(shape) + shape.offset.y + window.scrollY,
+    }));
+    const seen = new Set<number>();
+    const limit = mobile
+      ? BACKGROUND.chain.limit.mobile
+      : BACKGROUND.chain.limit.desktop;
+    const distance = mobile
+      ? BACKGROUND.chain.distance.mobile
+      : BACKGROUND.chain.distance.desktop;
+    const reach = mobile
+      ? BACKGROUND.chain.reach.mobile
+      : BACKGROUND.chain.reach.desktop;
+    let frontier: {
+      point: Point;
+      source: number | undefined;
+      born: number;
+      energy: number;
+    }[] = [{ point: origin, source: undefined, born: time, energy: 1 }];
+    const nextRelays: Relay[] = [];
+    for (let hop = 0; hop < 2 && nextRelays.length < limit; hop++) {
+      const next: typeof frontier = [];
+      for (const parent of frontier) {
+        const nearby = positions
+          .map((point, index) => ({
+            point,
+            index,
+            gap: Math.hypot(point.x - parent.point.x, point.y - parent.point.y),
+          }))
+          .filter(
+            ({ point, index, gap }) =>
+              !seen.has(index) &&
+              shapes[index].visible &&
+              gap < distance &&
+              Math.hypot(point.x - origin.x, point.y - origin.y) < reach,
+          )
+          .sort((a, b) => a.gap - b.gap)
+          .slice(0, 2);
+        for (const candidate of nearby) {
+          if (nextRelays.length >= limit) break;
+          seen.add(candidate.index);
+          const travel = Math.max(0.12, candidate.gap / BACKGROUND.chain.speed);
+          const energy = parent.energy * BACKGROUND.chain.decay;
+          nextRelays.push({
+            origin,
+            source: parent.source,
+            target: candidate.index,
+            born: parent.born,
+            travel,
+            energy,
+          });
+          next.push({
+            point: candidate.point,
+            source: candidate.index,
+            born: parent.born + travel + 0.07,
+            energy,
+          });
+        }
+      }
+      frontier = next;
+    }
+    relays = [...relays, ...nextRelays].slice(-limit);
+  }
+
   function render(dt: number) {
     time += dt;
     const awake = time - activeAt < BACKGROUND.idleAfter;
@@ -309,16 +451,11 @@ export function createSiteBackground(
         burst.y - window.scrollY > -BACKGROUND.burstRadius.desktop &&
         burst.y - window.scrollY < height + BACKGROUND.burstRadius.desktop,
     );
+    relays = relays.filter(
+      (relay) => time - relay.born < relay.travel + BACKGROUND.chain.response,
+    );
     for (const shape of shapes) {
-      const span = height + BACKGROUND.margin * 2;
-      let y =
-        ((((shape.y +
-          BACKGROUND.margin -
-          scroll * BACKGROUND.scrollParallax * shape.depth) %
-          span) +
-          span) %
-          span) -
-        BACKGROUND.margin;
+      let y = baseY(shape);
       let x = shape.x;
       if (y < -45 || y > height + 45 || x < -45 || x > width + 45) {
         if (shape.visible) {
@@ -327,6 +464,12 @@ export function createSiteBackground(
           shape.reactionAnimation?.pause();
         }
         attribute(shape.reaction, "opacity", "0");
+        shape.offset.x =
+          shape.offset.y =
+          shape.velocity.x =
+          shape.velocity.y =
+            0;
+        shape.phase = 0;
         shape.visible = false;
         continue;
       }
@@ -341,10 +484,19 @@ export function createSiteBackground(
       const distance = Math.hypot(dx, dy);
       const influence =
         (1 - clamp(distance / BACKGROUND.radius)) ** 2 * pointer.strength;
-      // Radial repulsion with a small tangential pull makes nearby wires orbit.
-      const push = influence * BACKGROUND.force * shape.depth;
-      x += ((dx - dy * 0.3) / (distance || 1)) * push;
-      y += ((dy + dx * 0.3) / (distance || 1)) * push;
+      const falloff = 1 - clamp(distance / BACKGROUND.radius);
+      const flow = falloff * falloff * (3 - 2 * falloff) * pointer.strength;
+      if (flow > 0.005)
+        shape.phase +=
+          dt * BACKGROUND.orbitSpeed * (0.65 + shape.depth * 0.35) * flow;
+      else shape.phase *= Math.exp(-dt * 5);
+      const angle = shape.phase;
+      const push = influence * BACKGROUND.force * shape.depth * 0.6;
+      const scale = (distance + push) / (distance || 1);
+      const target = {
+        x: ((Math.cos(angle) * dx - Math.sin(angle) * dy) * scale - dx) * flow,
+        y: ((Math.sin(angle) * dx + Math.cos(angle) * dy) * scale - dy) * flow,
+      };
       let shock = 0;
       for (const burst of bursts) {
         const progress = clamp((time - burst.born) / BACKGROUND.burstLife);
@@ -359,16 +511,54 @@ export function createSiteBackground(
         const pulse =
           Math.exp(-(((gap - reach) / 62) ** 2)) * (1 - progress) ** 1.4;
         shock += pulse;
-        x += (bx / (gap || 1)) * pulse * BACKGROUND.burstForce * shape.depth;
-        y += (by / (gap || 1)) * pulse * BACKGROUND.burstForce * shape.depth;
+        target.x +=
+          (bx / (gap || 1)) * pulse * BACKGROUND.burstForce * shape.depth;
+        target.y +=
+          (by / (gap || 1)) * pulse * BACKGROUND.burstForce * shape.depth;
       }
+      for (const relay of relays) {
+        if (shapes[relay.target] !== shape) continue;
+        const age =
+          (time - relay.born - relay.travel) / BACKGROUND.chain.response;
+        if (age <= 0 || age >= 1) continue;
+        const pulse = Math.sin(Math.PI * age) * (1 - age) * relay.energy;
+        const source =
+          relay.source === undefined ? undefined : shapes[relay.source];
+        const sx = source ? source.x : relay.origin.x;
+        const sy = source ? baseY(source) : relay.origin.y - window.scrollY;
+        const direction = Math.atan2(y - sy, x - sx) + 0.45;
+        target.x += Math.cos(direction) * pulse * 80;
+        target.y += Math.sin(direction) * pulse * 80;
+        shock += pulse;
+      }
+      const offsetLimit = mobile
+        ? BACKGROUND.maxOffset.mobile
+        : BACKGROUND.maxOffset.desktop;
+      const length = Math.hypot(target.x, target.y);
+      if (length > offsetLimit) {
+        target.x *= offsetLimit / length;
+        target.y *= offsetLimit / length;
+      }
+      if (pointer.strength < 0.001 && !bursts.length && !relays.length) {
+        target.x = 0;
+        target.y = 0;
+      }
+      if (reduced.matches) {
+        shape.offset.x =
+          shape.offset.y =
+          shape.velocity.x =
+          shape.velocity.y =
+            0;
+      } else follow(shape, target, dt);
+      x += shape.offset.x;
+      y += shape.offset.y;
       const edge = clamp(Math.min(x, width - x, y, height - y) / 70);
       const alpha =
         edge *
         intro *
         density(x) *
         (0.32 + shape.depth * 0.45 + influence * 0.2);
-      const transform = `translate(${number(x)} ${number(y)}) rotate(${number(influence * 34 + shock * 24)}) scale(${number(0.7 + shape.depth * 0.6 + influence * 0.15 + shock * 0.1)})`;
+      const transform = `translate(${number(x)} ${number(y)}) rotate(${number(flow * Math.sin(shape.phase) * 32 + shock * 24)}) scale(${number(0.7 + shape.depth * 0.6 + influence * 0.15 + shock * 0.1)})`;
       attribute(shape.element, "transform", transform);
       attribute(shape.element, "opacity", number(alpha));
       attribute(shape.reaction, "transform", transform);
@@ -487,6 +677,75 @@ export function createSiteBackground(
         }).join(""),
       );
     });
+    relayNodes.forEach((item, index) => {
+      const relay = relays[index];
+      const age = relay ? time - relay.born : -1;
+      if (!relay || age < 0 || reduced.matches) {
+        attribute(item.group, "display", "none");
+        return;
+      }
+      const target = shapes[relay.target];
+      const source =
+        relay.source === undefined ? undefined : shapes[relay.source];
+      if (!target.visible || (source && !source.visible)) {
+        attribute(item.group, "display", "none");
+        return;
+      }
+      const start = source
+        ? { x: source.x + source.offset.x, y: baseY(source) + source.offset.y }
+        : { x: relay.origin.x, y: relay.origin.y - window.scrollY };
+      const end = {
+        x: target.x + target.offset.x,
+        y: baseY(target) + target.offset.y,
+      };
+      const bend = Math.min(
+        34,
+        Math.hypot(end.x - start.x, end.y - start.y) * 0.14,
+      );
+      const control = {
+        x: (start.x + end.x) / 2 - bend,
+        y: (start.y + end.y) / 2 + bend,
+      };
+      const travel = clamp(age / relay.travel);
+      const fade =
+        (1 - clamp((age - relay.travel) / BACKGROUND.chain.response)) ** 2;
+      item.group.removeAttribute("display");
+      attribute(item.group, "opacity", number(relay.energy * fade * 0.45));
+      attribute(
+        item.line,
+        "d",
+        `M${number(start.x)} ${number(start.y)}Q${number(control.x)} ${number(control.y)} ${number(end.x)} ${number(end.y)}`,
+      );
+      attribute(
+        item.pulse,
+        "cx",
+        number(
+          (1 - travel) ** 2 * start.x +
+            2 * (1 - travel) * travel * control.x +
+            travel ** 2 * end.x,
+        ),
+      );
+      attribute(
+        item.pulse,
+        "cy",
+        number(
+          (1 - travel) ** 2 * start.y +
+            2 * (1 - travel) * travel * control.y +
+            travel ** 2 * end.y,
+        ),
+      );
+      attribute(
+        item.pulse,
+        "r",
+        number(
+          2 +
+            Math.sin(
+              Math.PI * clamp((age - relay.travel) / BACKGROUND.chain.response),
+            ) *
+              9,
+        ),
+      );
+    });
   }
 
   function tick(now: number) {
@@ -508,7 +767,16 @@ export function createSiteBackground(
       pointer.strength > 0.001 ||
       (time - activeAt < BACKGROUND.idleAfter && pointer.target > 0) ||
       bursts.length > 0 ||
+      relays.length > 0 ||
       trail.length > 0 ||
+      shapes.some(
+        (shape) =>
+          Math.abs(shape.offset.x) +
+            Math.abs(shape.offset.y) +
+            Math.abs(shape.velocity.x) +
+            Math.abs(shape.velocity.y) >
+          0.01,
+      ) ||
       Math.abs(scroll - window.scrollY) > 0.1
     )
       raf = requestAnimationFrame(tick);
@@ -611,6 +879,7 @@ export function createSiteBackground(
       born: time,
       variant: sequence++ % 3,
     });
+    chain({ x: event.clientX, y: event.clientY + window.scrollY });
     bursts = bursts.slice(
       -(mobile ? BACKGROUND.maxBursts.mobile : BACKGROUND.maxBursts.desktop),
     );
@@ -679,6 +948,7 @@ export function createSiteBackground(
     effects.replaceChildren();
     reactionLayer.replaceChildren();
     trailLayer.replaceChildren();
+    relayLayer.remove();
     attribute(pointerField, "opacity", "0");
     trail = [];
     bursts = [];

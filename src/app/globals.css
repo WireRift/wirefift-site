@@ -478,6 +478,18 @@ pre {
   stroke-width: 1.8;
   stroke-linecap: round;
 }
+.background-relay {
+  stroke: var(--background-amber);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+.background-relay path {
+  stroke-opacity: 0.6;
+}
+.background-relay circle {
+  fill: none;
+  stroke-width: 1.4;
+}
 .background-burst {
   stroke: var(--background-amber);
   stroke-width: 1.6;

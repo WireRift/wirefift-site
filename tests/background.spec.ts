@@ -111,7 +111,7 @@ test("SVG ambient motion keeps stable nodes and bounds local pointer and click e
         coordinates[2] - coordinates[0],
         coordinates[3] - coordinates[1],
       ),
-    ).toBeLessThanOrEqual(BACKGROUND.radius + BACKGROUND.force + 1);
+    ).toBeLessThanOrEqual(BACKGROUND.radius + BACKGROUND.maxOffset.desktop + 1);
   }
   await page.mouse.move(-10, -10);
   await page.clock.runFor(2200);
@@ -271,7 +271,11 @@ test("click waves displace nearby objects, leave distant ones still and release 
     (item) =>
       item.visible &&
       Math.hypot(item.x - point.x, item.y - point.y) >
-        BACKGROUND.burstRadius.desktop + 180,
+        Math.max(
+          BACKGROUND.burstRadius.desktop,
+          BACKGROUND.chain.reach.desktop,
+        ) +
+          120,
   );
   if (!far) throw new Error("Missing distant control object");
   const before = await transforms(page);
@@ -304,9 +308,115 @@ test("click waves displace nearby objects, leave distant ones still and release 
         .getAttribute("opacity"),
     ),
   ).toBeGreaterThan(0.1);
-  await page.clock.runFor(2200);
+  await page.clock.runFor(3800);
   expect(await transforms(page)).toEqual(before);
   await expect(page.locator(visibleBursts)).toHaveCount(0);
+  await page.clock.resume();
+});
+
+test("nearby shapes orbit a stationary pointer and return gently after it leaves", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await scene(page);
+  const before = await transforms(page);
+  const target = await page.locator(visibleMotifs).evaluateAll((elements) =>
+    elements
+      .map((element, index) => {
+        const matrix = (element as SVGGraphicsElement).getCTM();
+        return { index, x: matrix?.e ?? -1, y: matrix?.f ?? -1 };
+      })
+      .find(
+        (point) =>
+          point.x > 150 && point.x < 1200 && point.y > 200 && point.y < 750,
+      ),
+  );
+  if (!target) throw new Error("Missing orbital target");
+  const x = target.x - 70;
+  const y = target.y;
+  await page.mouse.move(x, y);
+  await page.clock.runFor(1100);
+  const position = () =>
+    page
+      .locator(visibleMotifs)
+      .nth(target.index)
+      .evaluate((element) => {
+        const matrix = (element as SVGGraphicsElement).getCTM();
+        return { x: matrix?.e ?? 0, y: matrix?.f ?? 0 };
+      });
+  const first = await position();
+  await page.clock.runFor(600);
+  const second = await position();
+  expect(
+    Math.hypot(second.x - first.x, second.y - first.y),
+    "orbit continues with a stationary mouse",
+  ).toBeGreaterThan(8);
+  expect(
+    Math.abs(
+      Math.atan2(second.y - y, second.x - x) -
+        Math.atan2(first.y - y, first.x - x),
+    ),
+  ).toBeGreaterThan(0.08);
+  await page.screenshot({ path: ".qa/svg-organic-orbit.png" });
+  await page.mouse.move(-10, -10);
+  await page.clock.runFor(3600);
+  expect(await transforms(page)).toEqual(before);
+  await page.clock.resume();
+});
+
+test("clicks relay through nearby shapes in delayed generations without growing the SVG pool", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await scene(page);
+  const pool = await page
+    .locator(".site-background *, .site-interaction *")
+    .count();
+  const point = await page.locator(visibleMotifs).evaluateAll((elements) =>
+    elements
+      .map((element) => {
+        const matrix = (element as SVGGraphicsElement).getCTM();
+        return { x: matrix?.e ?? -1, y: matrix?.f ?? -1 };
+      })
+      .find(
+        (item) => item.x > 250 && item.x < 1100 && item.y > 250 && item.y < 750,
+      ),
+  );
+  if (!point) throw new Error("Missing relay origin");
+  const event = {
+    pointerType: "mouse",
+    pointerId: 1,
+    isPrimary: true,
+    button: 0,
+    clientX: point.x,
+    clientY: point.y,
+  };
+  await page.locator("body").dispatchEvent("pointerdown", event);
+  await page.locator("body").dispatchEvent("pointerup", event);
+  const relays = page.locator('.background-relay:not([display="none"])');
+  await page.clock.runFor(50);
+  const firstGeneration = await relays.count();
+  expect(firstGeneration).toBeGreaterThan(0);
+  expect(firstGeneration).toBeLessThanOrEqual(2);
+  await page.clock.runFor(400);
+  expect(await relays.count()).toBeGreaterThan(firstGeneration);
+  expect(await relays.count()).toBeLessThanOrEqual(
+    BACKGROUND.chain.limit.desktop,
+  );
+  await page.screenshot({ path: ".qa/svg-organic-chain.png" });
+  for (let i = 0; i < 12; i++) {
+    await page.locator("body").dispatchEvent("pointerdown", event);
+    await page.locator("body").dispatchEvent("pointerup", event);
+  }
+  await page.clock.runFor(500);
+  expect(await relays.count()).toBeLessThanOrEqual(
+    BACKGROUND.chain.limit.desktop,
+  );
+  expect(
+    await page.locator(".site-background *, .site-interaction *").count(),
+  ).toBe(pool);
+  await page.clock.runFor(3800);
+  await expect(relays).toHaveCount(0);
   await page.clock.resume();
 });
 
