@@ -6,9 +6,12 @@ import { rayEnd, riftGeometry as shape } from "../src/lib/brand-geometry.ts";
 const font = openSync(
   "node_modules/@fontsource/geist/files/geist-latin-700-normal.woff",
 );
-function outline(text, size, tracking = 0) {
-  const run = font.layout(text);
-  const scale = size / font.unitsPerEm;
+const regularFont = openSync(
+  "node_modules/@fontsource/geist/files/geist-latin-400-normal.woff",
+);
+function outline(text, size, tracking = 0, typeface = font) {
+  const run = typeface.layout(text);
+  const scale = size / typeface.unitsPerEm;
   let cursor = 0;
   const paths = run.glyphs.map((glyph, i) => {
     const position = run.positions[i];
@@ -91,7 +94,47 @@ await sharp(Buffer.from(mark("#0e3048", "#fffdf8", true)))
   .flatten({ background: "#fffdf8" })
   .png()
   .toFile("public/apple-touch-icon.png");
-const og = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#fffdf8"/><g transform="translate(804 140) scale(2.5)" color="#0e3048">${symbol("#fffdf8")}</g><g transform="translate(72 53) scale(.6)" fill="#0e3048">${wordArt}</g><text x="72" y="265" font-family="Arial,sans-serif" font-size="88" font-weight="700" letter-spacing="-5" fill="#1b241d">Localhost.</text><text x="72" y="360" font-family="Arial,sans-serif" font-size="88" font-weight="700" letter-spacing="-5" fill="#88600b">Meet the world.</text><text x="76" y="440" font-family="Arial,sans-serif" font-size="25" fill="#636c61">Open-source tunnels. Your infrastructure. Your rules.</text><rect x="75" y="501" width="460" height="52" rx="6" fill="#f5b32c"/><text x="98" y="535" font-family="monospace" font-size="19" fill="#1b241d">Pure Go · Zero dependencies · Self-hosted</text></svg>`;
+const ogText = (text, x, y, size, fill, tracking = 0, typeface = font) =>
+  `<g transform="translate(${x} ${y})" fill="${fill}">${glyphs(outline(text, size, tracking, typeface), 0)}</g>`;
+const ogPills = [
+  { text: "Pure Go", x: 64, width: 110 },
+  { text: "Zero dependencies", x: 186, width: 178 },
+  { text: "MIT licensed", x: 376, width: 140 },
+]
+  .map(
+    ({ text, x, width }) =>
+      `<rect x="${x}" y="491" width="${width}" height="38" rx="7" fill="#ffffff" fill-opacity=".045" stroke="#ffffff" stroke-opacity=".14"/>${ogText(text, x + 16, 515, 14, "#dce4d9")}`,
+  )
+  .join("");
+const og = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<defs>
+  <pattern id="og-grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0v40" fill="none" stroke="#dfe8db" stroke-opacity=".045"/></pattern>
+  <radialGradient id="og-glow"><stop stop-color="#f5ad21" stop-opacity=".14"/><stop offset="1" stop-color="#f5ad21" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1200" height="630" fill="#111710"/>
+<rect x="650" width="550" height="630" fill="url(#og-grid)"/>
+<circle cx="940" cy="308" r="300" fill="url(#og-glow)"/>
+<g transform="translate(60 35) scale(.39)" color="#edf0e8">${symbol("#111710")}</g>
+<g transform="translate(118 41) scale(.57)" fill="#edf0e8">${wordArt}</g>
+<rect x="1004" y="47" width="132" height="28" rx="14" fill="#ffffff" fill-opacity=".035" stroke="#ffffff" stroke-opacity=".1"/>
+<circle cx="1020" cy="61" r="3" fill="#a3c587"/>
+${ogText("OPEN SOURCE", 1031, 65, 10, "#c4cebe", 0.6)}
+${ogText("Localhost.", 64, 257, 88, "#edf0e8", -4)}
+${ogText("Meet the world.", 64, 348, 88, "#f5b32c", -4)}
+${ogText("Self-hosted tunnels.", 67, 414, 23, "#c2ccbc", -0.25, regularFont)}
+${ogText("One Go binary. Entirely yours.", 67, 447, 23, "#c2ccbc", -0.25, regularFont)}
+${ogPills}
+${ogText("wirerift.com", 65, 586, 16, "#b4bfad", 0.25, regularFont)}
+<path d="M64 557H1136" stroke="#ffffff" stroke-opacity=".09"/>
+<g stroke="#a2b496" stroke-opacity=".18" fill="none"><circle cx="940" cy="302" r="171"/><ellipse cx="940" cy="302" rx="80" ry="171"/><ellipse cx="940" cy="302" rx="140" ry="171"/><ellipse cx="940" cy="302" rx="171" ry="65"/><ellipse cx="940" cy="302" rx="171" ry="128"/><path d="M769 302h342M940 131v342"/></g>
+<g fill="none" stroke="#f5ad21"><ellipse cx="940" cy="302" rx="218" ry="76" transform="rotate(-35 940 302)" stroke-opacity=".5"/><ellipse cx="940" cy="302" rx="205" ry="75" transform="rotate(42 940 302)" stroke-opacity=".28"/></g>
+<circle cx="940" cy="302" r="210" fill="none" stroke="#b6c5ac" stroke-opacity=".17" stroke-dasharray="2 10"/>
+<g fill="#f5ad21" stroke="#111710" stroke-width="5"><circle cx="792" cy="194" r="7"/><circle cx="1081" cy="362" r="7"/><circle cx="982" cy="139" r="7"/></g>
+<rect x="829" y="190" width="222" height="222" rx="31" fill="#182016" stroke="#f5ad21" stroke-opacity=".2"/>
+<g transform="translate(844 206) scale(1.5)" color="#edf0e8">${symbol("#182016")}</g>
+${ogText("LOCALHOST TO THE WORLD", 812, 530, 10, "#a2b295", 1)}
+${ogText("YOUR INFRASTRUCTURE. YOUR RULES.", 864, 585, 11, "#a2b295", 0.4)}
+</svg>`;
 await sharp(Buffer.from(og)).png().toFile("public/og.png");
 await sharp(
   Buffer.from(
