@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { docs } from "@/lib/docs";
 import { REPO } from "@/lib/site";
+import { AnimationToggle } from "./animation-toggle";
 import { Logo } from "./logo";
 import { ThemePicker } from "./theme-picker";
 
@@ -93,6 +94,7 @@ export function Navigation() {
               <kbd>⌘ K</kbd>
             </button>
             <ThemePicker />
+            <AnimationToggle />
             <a
               href={REPO}
               className="header-github"

@@ -85,6 +85,7 @@ function node<K extends keyof SVGElementTagNameMap>(
 export function createSiteBackground(
   svg: SVGSVGElement,
   foreground: SVGSVGElement,
+  enabled = true,
 ) {
   const objectLayer = svg.querySelector<SVGGElement>(".background-objects");
   const links = foreground.querySelector<SVGGElement>(".background-links");
@@ -107,10 +108,13 @@ export function createSiteBackground(
     return;
   const objects = objectLayer;
   const effects = effectLayer;
+  const connectionLayer = links;
+  const traces = trailLayer;
   const reactionLayer = reactions;
   const pointerField = field;
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-  let motionReduced = reduced.matches;
+  // Preference resolution belongs to the shared store. Explicit opt-in can
+  // enable this decorative layer without changing motion elsewhere in the UI.
+  const reduced = { matches: !enabled };
   let width = 1;
   let height = 1;
   let mobile = false;
@@ -177,16 +181,9 @@ export function createSiteBackground(
     const bounds = svg.getBoundingClientRect();
     const nextWidth = Math.max(1, bounds.width);
     const nextHeight = Math.max(1, bounds.height);
-    if (
-      shapes.length &&
-      width === nextWidth &&
-      height === nextHeight &&
-      motionReduced === reduced.matches
-    )
-      return;
+    if (shapes.length && width === nextWidth && height === nextHeight) return;
     width = nextWidth;
     height = nextHeight;
-    motionReduced = reduced.matches;
     mobile = width <= BACKGROUND.breakpoint;
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     foreground.setAttribute("viewBox", `0 0 ${width} ${height}`);
@@ -790,7 +787,6 @@ export function createSiteBackground(
     cancelAnimationFrame(raf);
     raf = 0;
     lastPaint = 0;
-    if (motionReduced !== reduced.matches) resize();
     syncMotion();
     if (disposed || document.hidden || !inView) {
       leave();
@@ -893,11 +889,49 @@ export function createSiteBackground(
   function out(event: PointerEvent) {
     if (!event.relatedTarget) leave();
   }
-  const observer = new ResizeObserver(resize);
+  let observer: ResizeObserver | undefined;
+  let visibility: IntersectionObserver | undefined;
+  function dispose() {
+    disposed = true;
+    cancelAnimationFrame(raf);
+    observer?.disconnect();
+    window.removeEventListener("resize", resize);
+    visibility?.disconnect();
+    document.removeEventListener("pointermove", move, true);
+    document.removeEventListener("pointerdown", press, true);
+    document.removeEventListener("pointerup", release, true);
+    document.removeEventListener("pointercancel", leave, true);
+    window.removeEventListener("pointerout", out);
+    window.removeEventListener("blur", leave);
+    window.removeEventListener("scroll", scrolled);
+    document.removeEventListener("visibilitychange", playback);
+    for (const shape of shapes) {
+      shape.animation?.cancel();
+      shape.reactionAnimation?.cancel();
+    }
+    objects.replaceChildren();
+    connectionLayer.replaceChildren();
+    effects.replaceChildren();
+    reactionLayer.replaceChildren();
+    traces.replaceChildren();
+    relayLayer.remove();
+    attribute(pointerField, "opacity", "0");
+    trail = [];
+    bursts = [];
+    relays = [];
+    shapes = [];
+    burstNodes = [];
+  }
+  if (!enabled) {
+    // One static render; no observers, input listeners or animation timelines.
+    resize();
+    return dispose;
+  }
+  observer = new ResizeObserver(resize);
   // Observe HTML layout, not animated SVG geometry. Rebuild only on real size changes.
   observer.observe(document.documentElement);
   window.addEventListener("resize", resize, { passive: true });
-  const visibility = new IntersectionObserver(([entry]) => {
+  visibility = new IntersectionObserver(([entry]) => {
     inView = entry.isIntersecting;
     playback();
   });
@@ -923,36 +957,5 @@ export function createSiteBackground(
   window.addEventListener("blur", leave);
   window.addEventListener("scroll", scrolled, { passive: true });
   document.addEventListener("visibilitychange", playback);
-  reduced.addEventListener("change", playback);
-  return () => {
-    disposed = true;
-    cancelAnimationFrame(raf);
-    observer.disconnect();
-    window.removeEventListener("resize", resize);
-    visibility.disconnect();
-    document.removeEventListener("pointermove", move, true);
-    document.removeEventListener("pointerdown", press, true);
-    document.removeEventListener("pointerup", release, true);
-    document.removeEventListener("pointercancel", leave, true);
-    window.removeEventListener("pointerout", out);
-    window.removeEventListener("blur", leave);
-    window.removeEventListener("scroll", scrolled);
-    document.removeEventListener("visibilitychange", playback);
-    reduced.removeEventListener("change", playback);
-    for (const shape of shapes) {
-      shape.animation?.cancel();
-      shape.reactionAnimation?.cancel();
-    }
-    objects.replaceChildren();
-    links.replaceChildren();
-    effects.replaceChildren();
-    reactionLayer.replaceChildren();
-    trailLayer.replaceChildren();
-    relayLayer.remove();
-    attribute(pointerField, "opacity", "0");
-    trail = [];
-    bursts = [];
-    shapes = [];
-    burstNodes = [];
-  };
+  return dispose;
 }

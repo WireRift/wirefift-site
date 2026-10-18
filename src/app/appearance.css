@@ -2,6 +2,56 @@
   position: relative;
   flex-shrink: 0;
 }
+.animation-control {
+  position: relative;
+  flex-shrink: 0;
+}
+.animation-toggle {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  color: var(--accent-ink);
+  background: transparent;
+}
+.animation-toggle[aria-pressed="false"] {
+  color: var(--muted);
+}
+.animation-toggle[aria-pressed="false"] svg {
+  opacity: 0.8;
+}
+.animation-toggle:hover {
+  background: var(--surface-soft);
+  border-color: var(--line);
+}
+.animation-toggle:focus-visible {
+  outline: 0.1875rem solid var(--accent-ink);
+  outline-offset: 0.1875rem;
+}
+.animation-tooltip {
+  position: absolute;
+  top: calc(100% + 0.65rem);
+  right: 0;
+  z-index: 6;
+  white-space: nowrap;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 0 6px 18px #0001;
+  font-size: 0.72rem;
+  visibility: hidden;
+  pointer-events: none;
+}
+.animation-control:hover .animation-tooltip:not([data-dismissed="true"]),
+.animation-control:focus-within
+  .animation-tooltip:not([data-dismissed="true"]) {
+  visibility: visible;
+}
 .theme-trigger {
   display: flex;
   align-items: center;

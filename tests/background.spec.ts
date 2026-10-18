@@ -9,6 +9,26 @@ const visibleMotifs =
 async function scene(page: Page) {
   await page.clock.install({ time: new Date("2026-01-01T00:00:00Z") });
   await page.goto("/");
+  const enabled = await page.evaluate(
+    () => !matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  await expect(page.locator(".animation-toggle")).toHaveAttribute(
+    "aria-pressed",
+    String(enabled),
+  );
+  if (enabled) {
+    // Hydration resolves the stored/system preference before starting the
+    // motor. Do not snapshot the initial server-rendered static fallback.
+    await expect
+      .poll(() =>
+        page
+          .locator(".background-drift")
+          .evaluateAll((elements) =>
+            elements.some((element) => element.getAnimations().length > 0),
+          ),
+      )
+      .toBe(true);
+  }
   await expect(page.locator(".site-background")).toBeInViewport();
   await expect(page.locator(".background-motif").first()).toHaveAttribute(
     "transform",
