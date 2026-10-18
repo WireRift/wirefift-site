@@ -108,9 +108,9 @@ test("mouse toggle clears interactions and listeners while ambient motion contin
       )
       .toBeGreaterThan(0);
     await expect(
-      page.getByRole("button", { name: "Fare efektlerini aç", exact: true }),
+      page.getByRole("button", { name: "Turn mouse effects on", exact: true }),
     ).toHaveAttribute("aria-pressed", "false");
-    await expect(page.getByRole("tooltip")).toHaveText("Fare efektlerini aç");
+    await expect(page.getByRole("tooltip")).toHaveText("Turn mouse effects on");
     await expect.poll(() => listeners(page)).toBe(0);
     await expect(page.locator(liveEffects)).toHaveCount(0);
     expect(
@@ -173,7 +173,7 @@ test("mouse toggle clears interactions and listeners while ambient motion contin
     }
     await button(page).press("Enter");
     await expect(
-      page.getByRole("button", { name: "Fare efektlerini kapat", exact: true }),
+      page.getByRole("button", { name: "Turn mouse effects off", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => listeners(page)).toBe(4);
     await button(page).press("Escape");

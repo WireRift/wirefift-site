@@ -8,14 +8,13 @@ export function AnimationToggle() {
   const [enabled, setEnabled] = usePointerEffects();
   const tooltip = useId();
   const [dismissed, setDismissed] = useState(false);
-  const label = enabled ? "Fare efektlerini kapat" : "Fare efektlerini aç";
+  const label = enabled ? "Turn mouse effects off" : "Turn mouse effects on";
   const Icon = enabled ? Mouse : MouseOff;
   return (
     <div className="animation-control">
       <button
         type="button"
         className="animation-toggle"
-        lang="tr"
         aria-label={label}
         aria-pressed={enabled}
         aria-describedby={tooltip}
@@ -32,7 +31,6 @@ export function AnimationToggle() {
         id={tooltip}
         role="tooltip"
         className="animation-tooltip"
-        lang="tr"
         data-dismissed={dismissed}
       >
         {label}
