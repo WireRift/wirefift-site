@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HeroBackground } from "@/components/hero-background";
 import {
   InspectorDemo,
   Quickstart,
@@ -82,8 +81,7 @@ const faqs = [
 export default function Home() {
   return (
     <main id="main">
-      <section className="hero-stage" data-hero-stage>
-        <HeroBackground />
+      <section className="hero-stage">
         <div className="hero container">
           <div className="hero-copy">
             <a

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Footer } from "@/components/footer";
 import { Navigation } from "@/components/navigation";
+import { SiteBackground } from "@/components/site-background";
 import { description, SITE } from "@/lib/site";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
@@ -59,6 +60,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
+        <SiteBackground />
         <a className="skip-link" href="#main">
           Skip to content
         </a>
