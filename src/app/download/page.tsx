@@ -45,6 +45,14 @@ export default function Download() {
           <Link href="/docs/server/" className="text-link">
             Set up your server <ArrowRight size={15} />
           </Link>
+          <p>
+            Developing locally? v{VERSION} includes trusted HTTPS on loopback
+            with <code>--dev</code>, plus temporary tunnels and connection
+            diagnostics.
+          </p>
+          <Link href="/changelog/" className="text-link">
+            What’s new in v{VERSION} <ArrowRight size={15} />
+          </Link>
           <hr />
           <h2>Prefer to build it yourself?</h2>
           <p>

@@ -3,15 +3,14 @@ import {
   ArrowUpRight,
   Braces,
   ChevronDown,
-  Fingerprint,
   Github,
   Globe,
   LockKeyhole,
   Network,
-  Radio,
-  RefreshCw,
   ShieldCheck,
+  Stethoscope,
   Terminal,
+  Timer,
   Zap,
 } from "lucide-react";
 import type { Metadata } from "next";
@@ -63,7 +62,7 @@ const faqs = [
   ],
   [
     "Do I need to run my own server?",
-    "Yes. WireRift is designed for self-hosting. Run the server on a machine with a public IP, configure your domain, and connect the client with your server address and token. The URLs on this website are illustrative examples.",
+    "Yes. WireRift is designed for self-hosting. For public tunnels, run the server on a reachable machine and configure your domain. For local-only development, v1.8.0 adds a loopback HTTPS mode with .localhost domains and a local CA. The URLs on this website are illustrative examples.",
   ],
   [
     "Is it really zero dependencies?",
@@ -90,7 +89,7 @@ export default function Home() {
             >
               <span className="status-light" />
               <strong>v{VERSION}</strong>
-              <span>A little binary. A wide-open world.</span>
+              <span>Local HTTPS. Timed tunnels. Better diagnostics.</span>
               <ArrowRight size={13} />
             </a>
             <h1>
@@ -296,24 +295,36 @@ export default function Home() {
           </div>
           <div className="small-features">
             <div>
-              <RefreshCw size={20} />
+              <LockKeyhole size={20} />
               <span>
-                <strong>Reconnect, automatically.</strong>
-                <small>Exponential backoff. Tunnels recreated.</small>
+                <strong>Local HTTPS. Zero public DNS.</strong>
+                <small>Loopback development with a scoped local CA.</small>
+                <Link href="/docs/local-https/" className="text-link">
+                  Try --dev <ArrowRight size={13} />
+                </Link>
               </span>
             </div>
             <div>
-              <Fingerprint size={20} />
+              <Timer size={20} />
               <span>
-                <strong>Bring your own domain.</strong>
-                <small>DNS verification and custom routing.</small>
+                <strong>Share it. Set its lifetime.</strong>
+                <small>Server-enforced expiry for HTTP, TCP and files.</small>
+                <Link href="/docs/http-tunnels/#ttl" className="text-link">
+                  Add --ttl 30m <ArrowRight size={13} />
+                </Link>
               </span>
             </div>
             <div>
-              <Radio size={20} />
+              <Stethoscope size={20} />
               <span>
-                <strong>Know what’s happening.</strong>
-                <small>Health checks and request ID tracing.</small>
+                <strong>Find the broken step.</strong>
+                <small>DNS, TCP, TLS and login checks with fix hints.</small>
+                <Link
+                  href="/docs/troubleshooting/#doctor"
+                  className="text-link"
+                >
+                  Run doctor <ArrowRight size={13} />
+                </Link>
               </span>
             </div>
           </div>

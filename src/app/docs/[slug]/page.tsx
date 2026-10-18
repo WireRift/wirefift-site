@@ -126,10 +126,10 @@ export default async function DocPage({
         <div className="doc-footer">
           <p>
             Based on the{" "}
-            <a href={`${REPO}/blob/master/README.md`}>
+            <a href={`${REPO}/blob/v${VERSION}/README.md`}>
               upstream WireRift reference <ArrowUpRight size={12} />
             </a>
-            . Check the source for the latest options.
+            {` for v${VERSION}. Check the source for the complete options.`}
           </p>
           <div className="doc-pagination">
             {index > 0 ? (

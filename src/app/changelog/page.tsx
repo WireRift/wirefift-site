@@ -1,9 +1,12 @@
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { releases } from "@/lib/releases";
 import { REPO, VERSION } from "@/lib/site";
+
 export const metadata: Metadata = {
   title: "Changelog",
+  description: `What’s new in WireRift v${VERSION}: local HTTPS, tunnel time limits, connection diagnostics and helpful error pages.`,
   alternates: { canonical: "/changelog/" },
 };
 export default function Changelog() {
@@ -20,47 +23,83 @@ export default function Changelog() {
           Always moving.
         </h1>
         <p>
-          Follow WireRift’s releases, inspect what changed, and find the right
-          version for your infrastructure.
+          Release notes, practical guides, and the source behind each change.
+          Here’s what shipped in WireRift.
         </p>
       </header>
       <div className="release-layout">
-        <article className="release-card">
-          <span className="release-label">LATEST VERIFIED RELEASE</span>
-          <h2>WireRift v{VERSION}</h2>
-          <p>
-            The latest release verified when this website was built. Find the
-            authoritative release notes, binaries and checksums on GitHub.
-          </p>
-          <p>
-            Native client and server binaries are available for Linux, macOS,
-            Windows and FreeBSD, with architecture options for supported
-            platforms.
-          </p>
-          <a
-            href={`${REPO}/releases/tag/v${VERSION}`}
-            className="button primary"
-          >
-            Read the release notes <ArrowUpRight size={16} />
-          </a>
-          <Link href="/download/" className="button secondary">
-            Get the binary <ArrowRight size={16} />
-          </Link>
-        </article>
-        <article className="release-card">
+        <div className="release-history">
+          {releases.map((release, index) => (
+            <article
+              className="release-card"
+              key={release.version}
+              id={`v${release.version}`}
+            >
+              <div className="release-meta">
+                <span className="release-label">
+                  {index === 0 ? "LATEST RELEASE" : "RELEASE"} / v
+                  {release.version}
+                </span>
+                <time dateTime={release.date}>{release.dateLabel}</time>
+              </div>
+              <h2>{release.title}</h2>
+              <p>{release.summary}</p>
+              {release.changes.length > 0 && (
+                <ul className="release-changes">
+                  {release.changes.map((change) => (
+                    <li key={change.title}>
+                      <h3>{change.title}</h3>
+                      <p>{change.text}</p>
+                      <Link href={change.href} className="text-link">
+                        {change.label} <ArrowRight size={14} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="release-actions">
+                <a
+                  href={`${REPO}/releases/tag/v${release.version}`}
+                  className="text-link"
+                >
+                  GitHub release <ArrowUpRight size={14} />
+                </a>
+                <a
+                  href={`${REPO}/compare/v${release.previous}...v${release.version}`}
+                  className="text-link"
+                >
+                  Compare changes <ArrowUpRight size={14} />
+                </a>
+              </div>
+            </article>
+          ))}
+        </div>
+        <aside className="release-card release-aside">
+          <span className="release-label">WIRERIFT / v{VERSION}</span>
           <h2>Every change has a trail.</h2>
           <p>
-            Browse the full release history for version-specific behavior, and
-            follow the source commits for changes that have not yet shipped.
+            These notes summarize published releases. The upstream changelog
+            records the complete history; source commits may include work that
+            has not shipped yet.
           </p>
-          <a href={`${REPO}/releases`} className="text-link">
-            All releases <ArrowUpRight size={15} />
-          </a>
-          <br />
-          <a href={`${REPO}/commits/master/`} className="text-link">
-            Source history <ArrowUpRight size={15} />
-          </a>
-        </article>
+          <Link href="/download/" className="button primary">
+            Get v{VERSION} <ArrowRight size={16} />
+          </Link>
+          <div className="release-source-links">
+            <a
+              href={`${REPO}/blob/v${VERSION}/CHANGELOG.md`}
+              className="text-link"
+            >
+              Full upstream changelog <ArrowUpRight size={15} />
+            </a>
+            <a href={`${REPO}/releases`} className="text-link">
+              All releases <ArrowUpRight size={15} />
+            </a>
+            <a href={`${REPO}/commits/master/`} className="text-link">
+              Source history <ArrowUpRight size={15} />
+            </a>
+          </div>
+        </aside>
       </div>
     </main>
   );

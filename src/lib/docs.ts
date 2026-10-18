@@ -1,3 +1,5 @@
+import { REPO, VERSION } from "./site";
+
 export type DocSection = {
   id: string;
   title: string;
@@ -38,6 +40,11 @@ export const docs: Doc[] = [
         note: "Replace tunnel.example.com and YOUR_TOKEN with your own server and token. Public URLs throughout these docs are examples, not a shared hosted tunnel service.",
       },
       {
+        id: "local",
+        title: "Only developing on your machine?",
+        text: "In v1.8.0, local HTTPS mode runs the server on loopback with .localhost or .test domains and a persistent development CA. Use the Local HTTPS development guide when you do not need a public tunnel or DNS.",
+      },
+      {
         id: "next",
         title: "Make the connection yours",
         text: "Use HTTP tunnels for web apps and webhooks, TCP tunnels for databases and other raw protocols, and the built-in dashboard to inspect requests. Start with the installation guide, then follow the server setup.",
@@ -68,10 +75,16 @@ export const docs: Doc[] = [
         code: 'Invoke-WebRequest -Uri "https://github.com/WireRift/WireRift/releases/latest/download/wirerift-windows-amd64.exe" -OutFile "wirerift.exe"\n.\\wirerift.exe --help',
       },
       {
+        id: "go-install",
+        title: "Install with Go",
+        text: "With Go 1.23 or later, install the client and server at the documented release version. Go places the executables in GOBIN, or in the bin directory under GOPATH when GOBIN is unset; add that directory to your PATH.",
+        code: `go install github.com/wirerift/wirerift/cmd/wirerift@v${VERSION}\ngo install github.com/wirerift/wirerift/cmd/wirerift-server@v${VERSION}\nwirerift --version`,
+      },
+      {
         id: "source",
         title: "Build from source",
-        text: "The repository requires Go 1.23 or later. There are no third-party Go dependencies.",
-        code: "git clone https://github.com/WireRift/WireRift.git\ncd WireRift\ngo build -o wirerift ./cmd/wirerift\ngo build -o wirerift-server ./cmd/wirerift-server",
+        text: "The repository requires Go 1.23 or later. There are no third-party Go dependencies. Check out the release tag to build the version documented here.",
+        code: `git clone --branch v${VERSION} --depth 1 ${REPO}.git\ncd WireRift\ngo build -o wirerift ./cmd/wirerift\ngo build -o wirerift-server ./cmd/wirerift-server`,
       },
     ],
   },
@@ -134,6 +147,17 @@ export const docs: Doc[] = [
         code: "wirerift http 3000 myapp --inspect \\\n  --server tunnel.example.com:4443 --token YOUR_TOKEN",
       },
       {
+        id: "streaming",
+        title: "Keep streaming responses flowing",
+        text: "SSE, long polling and large downloads are streamed to the visitor rather than fully buffered. The client waits up to two minutes for the local app's first response byte; a visitor disconnect releases the stream.",
+      },
+      {
+        id: "ttl",
+        title: "Give a preview an expiry time",
+        text: "Add --ttl with a Go duration such as 30m or 2h to http or serve. The server closes the tunnel at its deadline and releases the subdomain. A reconnect preserves that deadline and cannot revive an expired tunnel. Omit --ttl, or use 0, for no time limit; negative durations and limits above one year are rejected.",
+        code: "wirerift http 3000 preview --ttl 30m \\\n  --server tunnel.example.com:4443 --token YOUR_TOKEN\n\nwirerift serve ./dist --ttl 2h \\\n  --server tunnel.example.com:4443 --token YOUR_TOKEN",
+      },
+      {
         id: "files",
         title: "Share a static directory",
         text: "Serve files directly through a tunnel without starting another local web server.",
@@ -152,6 +176,12 @@ export const docs: Doc[] = [
         title: "Forward a raw TCP service",
         text: "Expose a local database, game server or SSH service with a TCP tunnel. The server allocates a public port and prints the address to use.",
         code: "wirerift tcp 5432 --server tunnel.example.com:4443 --token YOUR_TOKEN",
+      },
+      {
+        id: "ttl",
+        title: "Close a temporary TCP tunnel automatically",
+        text: "Use --ttl for time-limited access to a database or other raw service. The server closes the public listener and frees the allocated port on expiry. Reconnection keeps the original expiry time.",
+        code: "wirerift tcp 5432 --ttl 30m \\\n  --server tunnel.example.com:4443 --token YOUR_TOKEN",
       },
       {
         id: "ports",
@@ -294,6 +324,13 @@ export const docs: Doc[] = [
         ],
       },
       {
+        id: "expiry",
+        title: "Read a tunnel’s expiry time",
+        text: "GET /api/tunnels includes an expires_at timestamp for a time-limited tunnel. The field is omitted for tunnels without an expiry. The server enforces the deadline independently of the dashboard or client process.",
+        code: 'curl -H "Authorization: Bearer YOUR_TOKEN" \\\n  http://localhost:4040/api/tunnels',
+        note: "When embedding the server library, Config.PublicScheme and Config.PublicPort control the scheme and port in advertised HTTP tunnel URLs. These are Go configuration fields, not CLI flags. Dev mode configures them for its local HTTPS edge.",
+      },
+      {
         id: "tracing",
         title: "Follow a request",
         text: "Proxied requests include an X-Request-ID header. WireRift preserves an incoming ID or generates one, helping you connect application logs with captured traffic.",
@@ -374,15 +411,15 @@ export const docs: Doc[] = [
       {
         id: "dev",
         title: "Run a loopback development stack",
-        text: "The --dev server mode binds locally and uses unprivileged ports: control 4443, HTTP 8080, HTTPS 8443. It lets you develop with *.localhost domains without exposing the stack to the network.",
+        text: "New in v1.8.0, --dev defaults to loopback with unprivileged ports: control 4443, HTTP 8080, HTTPS 8443. It serves HTTPS for .localhost and .test names through a persistent local CA. You do not need a public domain or ACME. Explicit address flags or environment settings override the loopback defaults.",
         code: "wirerift-server --dev\n# Use the token printed by the server\nwirerift http 3000 myapp --server 127.0.0.1:4443 --token YOUR_TOKEN",
       },
       {
         id: "trust",
         title: "Create and trust the development CA",
-        text: "Run the trust command when you explicitly want to install WireRift's local development CA into your machine's trust store. It may request operating system privileges. Restart your browser after installing it.",
+        text: "Run the trust command once to create the development CA and install it in your system trust store. On Linux, Chrome/Chromium and Firefox NSS profiles also need certutil from libnss3-tools or nss-tools. The command may request operating system privileges. Restart your browser afterwards.",
         code: "wirerift-server ca trust\nwirerift-server ca status",
-        note: "The upstream README notes that macOS and Windows trust-store support is implemented but has not been exercised on real machines. Check the current source and platform behavior for your setup.",
+        note: "Upstream verified the complete trust flow on Debian/Ubuntu with curl/OpenSSL, NSS and Firefox. RHEL/Fedora/Arch, macOS and Windows support is implemented and unit-tested, but upstream has not exercised those trust-store paths on real machines yet.",
       },
       {
         id: "open",
@@ -390,10 +427,15 @@ export const docs: Doc[] = [
         text: "Browsers resolve *.localhost to loopback. In dev mode your app can be available at https://myapp.localhost:8443. For .test domains, add explicit local host mappings.",
       },
       {
+        id: "scope",
+        title: "A CA scoped to local development",
+        text: "Critical X.509 name constraints restrict the CA to .localhost, .test and loopback IPs. It cannot issue valid certificates for public websites. Keep the persistent CA key private. Use --ca-dir DIR on both the server and CA commands if you choose a custom directory.",
+      },
+      {
         id: "undo",
         title: "Remove the local trust",
-        text: "The CA management commands let you inspect the certificate path or remove the trust when you no longer need it.",
-        code: "wirerift-server ca path\nwirerift-server ca untrust",
+        text: "ca path prints the CA certificate path, creating the CA if needed. Tools with their own trust configuration can use that certificate with curl --cacert or NODE_EXTRA_CA_CERTS. ca untrust removes the trust; add --purge only when you also want to delete the CA files.",
+        code: "wirerift-server ca path\nwirerift-server ca untrust\n# Also delete the CA files, if no longer needed:\n# wirerift-server ca untrust --purge",
       },
     ],
   },
@@ -403,6 +445,13 @@ export const docs: Doc[] = [
     category: "Reference",
     description: "Get back to a working connection.",
     sections: [
+      {
+        id: "doctor",
+        title: "Start with wirerift doctor",
+        text: "New in v1.8.0, doctor checks the server address, DNS, TCP connectivity, TLS certificate validity and expiry, and authentication in order. It stops at the first broken step with a fix hint and exits non-zero on failure. It never prints the token and warns about an unencrypted control connection to a non-loopback host.",
+        code: "wirerift doctor --server tls://tunnel.example.com:4443 --token YOUR_TOKEN",
+        note: "Use the same server address and token as your tunnel. For a private control-plane CA, set WIRERIFT_TLS_CA to the CA certificate file; doctor uses the client's TLS configuration.",
+      },
       {
         id: "connection",
         title: "The client cannot connect",
@@ -421,7 +470,12 @@ export const docs: Doc[] = [
       {
         id: "upstream",
         title: "The tunnel connects, but the app does not respond",
-        text: "Open the app locally first. Verify the local port and process, then use --inspect to check paths, headers and responses. If your development server restricts allowed hosts, configure its explicit host allowlist for the tunnel URL.",
+        text: "Open the app locally first. Verify the local port and process, then use --inspect to check paths, headers and responses. If your development server restricts allowed hosts, configure its explicit host allowlist for the tunnel URL. In v1.8.0, browsers requesting HTML get an explanatory page when a tunnel is missing, its client is disconnected or the local app is unavailable. API clients keep plain-text errors. Local-app failures include X-WireRift-Error and do not reveal your local port to visitors.",
+      },
+      {
+        id: "expired",
+        title: "A temporary tunnel has disappeared",
+        text: "A tunnel created with --ttl is removed at its server-enforced deadline. Reconnecting does not reset the timer or reopen an expired tunnel. Start a new tunnel explicitly when you need another session; its former subdomain or port may already have been allocated again.",
       },
       {
         id: "help",
