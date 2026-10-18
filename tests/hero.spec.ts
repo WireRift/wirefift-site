@@ -203,15 +203,21 @@ test.describe("high-density display", () => {
     await page.evaluate(() =>
       window.scrollTo({ top: 2200, behavior: "instant" }),
     );
+    // Native intersection delivery uses the browser render cycle, not the
+    // installed JS clock. Wait for visibility before advancing animation time.
+    await expect(page.locator(".hero-stage")).not.toBeInViewport();
     await page.clock.runFor(150);
     const offscreen = await page.evaluate(() => window.heroDraws.frames);
     await page.clock.runFor(10_000);
     expect(await page.evaluate(() => window.heroDraws.frames)).toBe(offscreen);
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-    await page.clock.runFor(200);
-    expect(await page.evaluate(() => window.heroDraws.frames)).toBeGreaterThan(
-      offscreen,
-    );
+    await expect(page.locator(".hero-stage")).toBeInViewport();
+    await expect
+      .poll(async () => {
+        await page.clock.runFor(100);
+        return page.evaluate(() => window.heroDraws.frames);
+      })
+      .toBeGreaterThan(offscreen);
     await page.setViewportSize({ width: 3840, height: 2160 });
     await page.clock.runFor(200);
     const resolution = await page
