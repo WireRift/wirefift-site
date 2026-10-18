@@ -4,7 +4,12 @@
   --surface: light-dark(#fff, #191c17);
   --surface-soft: light-dark(#f5f4ee, #151812);
   --surface-hover: light-dark(#eeeee5, #252a20);
-  --section-surface: color-mix(in srgb, var(--surface-soft) 55%, transparent);
+  --section-surface: linear-gradient(
+    transparent,
+    color-mix(in srgb, var(--surface-soft) 50%, transparent) 18%,
+    color-mix(in srgb, var(--surface-soft) 50%, transparent) 82%,
+    transparent
+  );
   --ink: light-dark(#1b241d, #edf0e8);
   --muted: light-dark(#636c61, #a6b19f);
   --line: light-dark(#e3e5da, #30382b);
@@ -400,12 +405,12 @@ pre {
     transparent 56%
   );
 }
-.site-background {
+.site-background,
+.site-interaction {
   --background-wire: light-dark(#527462, #8eb49a);
   --background-amber: light-dark(#bb8118, #f5bd52);
   position: fixed;
   inset: 0;
-  z-index: -1;
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -413,13 +418,27 @@ pre {
   stroke: var(--background-wire);
   stroke-width: 0.85;
 }
+.site-background {
+  z-index: -1;
+}
+.site-interaction {
+  /* Root sibling: above section/card stacking contexts, below navigation (40)
+     and native dialog/popover top layers. No section can clip this SVG. */
+  z-index: 30;
+  contain: layout style size;
+}
+.site-interaction,
+.site-interaction * {
+  pointer-events: none;
+}
 .background-contours {
   opacity: 0.13;
 }
 .background-motif {
-  stroke-opacity: 0.26;
+  stroke-opacity: 0.36;
 }
-.background-drift {
+.background-drift,
+.interaction-drift {
   transform-box: fill-box;
   transform-origin: center;
 }
@@ -436,17 +455,40 @@ pre {
 }
 .background-links {
   stroke: var(--background-amber);
+  stroke-width: 1.15;
+  stroke-linecap: round;
+}
+.interaction-motif {
+  stroke-width: 1.3;
+}
+.background-pointer {
+  stroke: var(--background-amber);
+}
+.background-pointer-orbit {
+  stroke-opacity: 0.2;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+.background-pointer-core {
+  stroke-opacity: 0.36;
+  stroke-width: 1.2;
+}
+.background-trail {
+  stroke: var(--background-amber);
+  stroke-width: 1.8;
+  stroke-linecap: round;
 }
 .background-burst {
   stroke: var(--background-amber);
-  stroke-width: 1.1;
+  stroke-width: 1.6;
 }
 .background-burst .background-packets {
   fill: var(--background-amber);
   stroke: none;
 }
 @media print {
-  .site-background {
+  .site-background,
+  .site-interaction {
     display: none;
   }
 }

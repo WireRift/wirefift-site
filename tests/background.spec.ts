@@ -1,7 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
+import { BACKGROUND } from "../src/lib/site-background";
 
 const visibleBursts =
-  '.site-background .background-burst:not([display="none"])';
+  '.site-interaction .background-burst:not([display="none"])';
 const visibleMotifs =
   '.site-background .background-motif:not([display="none"])';
 
@@ -67,7 +68,9 @@ test("SVG ambient motion keeps stable nodes and bounds local pointer and click e
   await scene(page);
   await expect(page.locator("svg.site-background")).toHaveCount(1);
   await expect(page.locator("canvas")).toHaveCount(0);
-  const poolSize = await page.locator(".site-background *").count();
+  const poolSize = await page
+    .locator(".site-background *, .site-interaction *")
+    .count();
   const before = await transforms(page);
   await page
     .locator(".background-motif")
@@ -108,7 +111,7 @@ test("SVG ambient motion keeps stable nodes and bounds local pointer and click e
         coordinates[2] - coordinates[0],
         coordinates[3] - coordinates[1],
       ),
-    ).toBeLessThanOrEqual(227);
+    ).toBeLessThanOrEqual(BACKGROUND.radius + BACKGROUND.force + 1);
   }
   await page.mouse.move(-10, -10);
   await page.clock.runFor(2200);
@@ -116,7 +119,9 @@ test("SVG ambient motion keeps stable nodes and bounds local pointer and click e
   for (let i = 0; i < 18; i++) await page.mouse.click(1408, 500);
   await page.clock.runFor(180);
   await expect(page.locator(visibleBursts)).toHaveCount(5);
-  expect(await page.locator(".site-background *").count()).toBe(poolSize);
+  expect(
+    await page.locator(".site-background *, .site-interaction *").count(),
+  ).toBe(poolSize);
   await page.screenshot({ path: ".qa/svg-background-light.png" });
   await page.clock.runFor(2600);
   await expect(page.locator(visibleBursts)).toHaveCount(0);
@@ -169,6 +174,140 @@ test("one SVG persists through client navigation, document sections and footer",
   }
   await page.screenshot({ path: ".qa/svg-background-footer.png" });
   expect(errors).toEqual([]);
+});
+
+for (const mode of ["light", "dark"] as const) {
+  test(`pointer effects stay above clipped content and track text, controls and scroll in viewport coordinates (${mode})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await scene(page);
+    await page.evaluate((theme) => {
+      document.documentElement.dataset.theme = theme;
+    }, mode);
+    const paintOrder = await page
+      .locator(".background-effects")
+      .evaluate((element) => {
+        const svg = (element as SVGElement).ownerSVGElement;
+        return {
+          z: Number(svg && getComputedStyle(svg).zIndex),
+          root: svg?.parentElement?.tagName,
+          events: svg && getComputedStyle(svg).pointerEvents,
+        };
+      });
+    expect(
+      paintOrder.z,
+      "interaction layer must paint over opaque content",
+    ).toBeGreaterThan(0);
+    expect(paintOrder.root).toBe("BODY");
+    expect(paintOrder.events).toBe("none");
+    const field = page.locator(".background-pointer");
+    for (const selector of [
+      ".hero-copy h1",
+      ".feature-card h3",
+      ".feature-card .text-link",
+      ".cta-section h2",
+    ]) {
+      const target = page.locator(selector).first();
+      await target.evaluate((element) =>
+        element.scrollIntoView({ block: "center", behavior: "instant" }),
+      );
+      const box = await target.boundingBox();
+      if (!box) throw new Error("Missing pointer target");
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      await page.mouse.move(x, y);
+      await page.clock.runFor(450);
+      await expect(field).toHaveAttribute(
+        "transform",
+        `translate(${x.toFixed(2)} ${y.toFixed(2)})`,
+      );
+      expect(Number(await field.getAttribute("opacity"))).toBeGreaterThan(0.3);
+      if (selector === ".feature-card h3") {
+        await page.screenshot({ path: `.qa/svg-interaction-${mode}.png` });
+      }
+      await page.evaluate(() =>
+        window.scrollBy({ top: 140, behavior: "instant" }),
+      );
+      await page.clock.runFor(350);
+      await expect(field).toHaveAttribute(
+        "transform",
+        `translate(${x.toFixed(2)} ${y.toFixed(2)})`,
+      );
+      expect(Number(await field.getAttribute("opacity"))).toBeGreaterThan(0.3);
+    }
+    await page.clock.resume();
+  });
+}
+
+test("click waves displace nearby objects, leave distant ones still and release their bounded pool", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await scene(page);
+  const positions = await page
+    .locator(".background-motif")
+    .evaluateAll((elements) =>
+      elements.map((element, index) => {
+        const matrix = (element as SVGGraphicsElement).getCTM();
+        return {
+          index,
+          x: matrix?.e ?? -1,
+          y: matrix?.f ?? -1,
+          visible: element.getAttribute("display") !== "none",
+        };
+      }),
+    );
+  const point = positions.find(
+    (item) =>
+      item.visible &&
+      item.x > 100 &&
+      item.x < 1300 &&
+      item.y > 150 &&
+      item.y < 850,
+  );
+  if (!point) throw new Error("Missing click-wave target");
+  const far = positions.find(
+    (item) =>
+      item.visible &&
+      Math.hypot(item.x - point.x, item.y - point.y) >
+        BACKGROUND.burstRadius.desktop + 180,
+  );
+  if (!far) throw new Error("Missing distant control object");
+  const before = await transforms(page);
+  // Dispatch an unblocked background gesture at a known object's coordinates.
+  const event = {
+    pointerType: "mouse",
+    pointerId: 1,
+    isPrimary: true,
+    button: 0,
+    clientX: point.x,
+    clientY: point.y,
+  };
+  await page.locator("body").dispatchEvent("pointerdown", event);
+  await page.locator("body").dispatchEvent("pointerup", event);
+  await page.clock.runFor(100);
+  const moved = await page
+    .locator(".background-motif")
+    .nth(point.index)
+    .evaluate((element) => {
+      const matrix = (element as SVGGraphicsElement).getCTM();
+      return { x: matrix?.e ?? 0, y: matrix?.f ?? 0 };
+    });
+  expect(Math.hypot(moved.x - point.x, moved.y - point.y)).toBeGreaterThan(10);
+  expect((await transforms(page))[far.index]).toBe(before[far.index]);
+  expect(
+    Number(
+      await page
+        .locator(".interaction-motif")
+        .nth(point.index)
+        .getAttribute("opacity"),
+    ),
+  ).toBeGreaterThan(0.1);
+  await page.clock.runFor(2200);
+  expect(await transforms(page)).toEqual(before);
+  await expect(page.locator(visibleBursts)).toHaveCount(0);
+  await page.clock.resume();
 });
 
 test("reduced motion is static through scrolling and theme changes, hidden SVG stops and resumes", async ({
@@ -315,6 +454,9 @@ test("wide displays keep a bounded SVG pool at any pixel density", async ({
     expect(size?.width).toBe(3840);
     expect(size?.height).toBe(2160);
     expect(await page.locator(".site-background *").count()).toBeLessThan(150);
+    expect(
+      await page.locator(".site-background *, .site-interaction *").count(),
+    ).toBeLessThan(260);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBe(3840);

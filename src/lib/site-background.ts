@@ -1,27 +1,33 @@
 type Point = { x: number; y: number };
 type Motif = {
   element: SVGGElement;
+  reaction: SVGGElement;
   animation: Animation | undefined;
+  reactionAnimation: Animation | undefined;
   x: number;
   y: number;
   depth: number;
   visible: boolean;
 };
 type Burst = Point & { born: number; variant: number };
+type Trail = Point & { born: number };
 
 export const BACKGROUND = {
   breakpoint: 760,
   objects: { mobile: 12, desktop: 28, wide: 42 },
-  radius: 200,
-  force: 26,
+  radius: 330,
+  force: 78,
   scrollParallax: 0.08,
   drift: 20,
   speed: 0.12,
   margin: 130,
   fps: { mobile: 30, desktop: 60, idle: 20 },
   idleAfter: 3,
-  burstLife: 2.2,
-  burstRadius: { mobile: 135, desktop: 220 },
+  burstLife: 1.8,
+  burstRadius: { mobile: 185, desktop: 350 },
+  burstForce: 95,
+  trailLife: 0.65,
+  maxTrail: 12,
   maxBursts: { mobile: 3, desktop: 5 },
   burstPackets: 8,
   maxLinks: 3,
@@ -55,13 +61,33 @@ function node<K extends keyof SVGElementTagNameMap>(
 }
 
 /** No React frame updates; bounded SVG pools, time-based motion, full disposal. */
-export function createSiteBackground(svg: SVGSVGElement) {
+export function createSiteBackground(
+  svg: SVGSVGElement,
+  foreground: SVGSVGElement,
+) {
   const objectLayer = svg.querySelector<SVGGElement>(".background-objects");
-  const links = svg.querySelector<SVGGElement>(".background-links");
-  const effectLayer = svg.querySelector<SVGGElement>(".background-effects");
-  if (!objectLayer || !links || !effectLayer) return;
+  const links = foreground.querySelector<SVGGElement>(".background-links");
+  const effectLayer = foreground.querySelector<SVGGElement>(
+    ".background-effects",
+  );
+  const reactions = foreground.querySelector<SVGGElement>(
+    ".background-reactions",
+  );
+  const trailLayer = foreground.querySelector<SVGGElement>(".background-trail");
+  const field = foreground.querySelector<SVGGElement>(".background-pointer");
+  if (
+    !objectLayer ||
+    !links ||
+    !effectLayer ||
+    !reactions ||
+    !trailLayer ||
+    !field
+  )
+    return;
   const objects = objectLayer;
   const effects = effectLayer;
+  const reactionLayer = reactions;
+  const pointerField = field;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   let motionReduced = reduced.matches;
   let width = 1;
@@ -69,6 +95,7 @@ export function createSiteBackground(svg: SVGSVGElement) {
   let mobile = false;
   let shapes: Motif[] = [];
   let bursts: Burst[] = [];
+  let trail: Trail[] = [];
   let burstNodes: {
     group: SVGGElement;
     ring: SVGCircleElement;
@@ -79,6 +106,10 @@ export function createSiteBackground(svg: SVGSVGElement) {
     node("path", { display: "none" }),
   );
   links.replaceChildren(...linkNodes);
+  const trailNodes = Array.from({ length: BACKGROUND.maxTrail }, () =>
+    node("path", { display: "none" }),
+  );
+  trailLayer.replaceChildren(...trailNodes);
   let raf = 0;
   let lastPaint = 0;
   let time = 0;
@@ -101,7 +132,7 @@ export function createSiteBackground(svg: SVGSVGElement) {
   }
   // Readability is computed on small vectors, avoiding full-viewport masks.
   function density(x: number) {
-    return 0.38 + 0.62 * clamp(Math.abs(x / width - 0.5) * 2) ** 1.3;
+    return 0.55 + 0.45 * clamp(Math.abs(x / width - 0.5) * 2) ** 1.3;
   }
   function resize() {
     if (disposed) return;
@@ -120,12 +151,16 @@ export function createSiteBackground(svg: SVGSVGElement) {
     motionReduced = reduced.matches;
     mobile = width <= BACKGROUND.breakpoint;
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    foreground.setAttribute("viewBox", `0 0 ${width} ${height}`);
     const count = mobile
       ? BACKGROUND.objects.mobile
       : width >= 1900
         ? BACKGROUND.objects.wide
         : BACKGROUND.objects.desktop;
-    for (const shape of shapes) shape.animation?.cancel();
+    for (const shape of shapes) {
+      shape.animation?.cancel();
+      shape.reactionAnimation?.cancel();
+    }
     shapes = Array.from({ length: count }, (_, i) => {
       const element = node("g", {
         class: `background-motif ${i % 3 === 0 ? "background-amber" : "background-wire"}`,
@@ -136,6 +171,13 @@ export function createSiteBackground(svg: SVGSVGElement) {
         "vector-effect": "non-scaling-stroke",
       });
       element.append(floating);
+      const reaction = node("g", {
+        class: `interaction-motif ${i % 3 === 0 ? "background-amber" : "background-wire"}`,
+        opacity: "0",
+      });
+      const echo = floating.cloneNode(true) as SVGPathElement;
+      echo.setAttribute("class", "interaction-drift");
+      reaction.append(echo);
       const depth = 0.4 + ((i * 5) % 11) / 17;
       const speed = BACKGROUND.speed * (0.5 + (i % 5) / 5);
       const reach = BACKGROUND.drift * depth;
@@ -160,9 +202,22 @@ export function createSiteBackground(svg: SVGSVGElement) {
         animation.pause();
         animation.currentTime = ((i * 0.381966) % 1) * duration;
       }
+      const reactionAnimation = animation
+        ? echo.animate((animation.effect as KeyframeEffect).getKeyframes(), {
+            duration,
+            iterations: Infinity,
+            easing: "ease-in-out",
+          })
+        : undefined;
+      if (reactionAnimation) {
+        reactionAnimation.pause();
+        reactionAnimation.currentTime = ((i * 0.381966) % 1) * duration;
+      }
       return {
         element,
+        reaction,
         animation,
+        reactionAnimation,
         x: ((i * 0.61803398875 + 0.09) % 1) * width,
         y:
           ((i * 0.754877666 + 0.16) % 1) * (height + BACKGROUND.margin * 2) -
@@ -172,6 +227,7 @@ export function createSiteBackground(svg: SVGSVGElement) {
       };
     });
     objects.replaceChildren(...shapes.map((shape) => shape.element));
+    reactionLayer.replaceChildren(...shapes.map((shape) => shape.reaction));
     burstNodes = Array.from(
       {
         length: mobile
@@ -196,6 +252,7 @@ export function createSiteBackground(svg: SVGSVGElement) {
     );
     effects.replaceChildren(...burstNodes.map((item) => item.group));
     hideBursts();
+    trail = [];
     leave();
     render(0);
     syncMotion();
@@ -215,6 +272,17 @@ export function createSiteBackground(svg: SVGSVGElement) {
         if (shape.animation.playState !== "running") shape.animation.play();
       } else if (shape.animation.playState !== "paused")
         shape.animation.pause();
+      if (shape.reactionAnimation) {
+        if (
+          shape.animation.playState === "running" &&
+          Number(shape.reaction.getAttribute("opacity")) > 0.005
+        ) {
+          shape.reactionAnimation.currentTime = shape.animation.currentTime;
+          if (shape.reactionAnimation.playState !== "running")
+            shape.reactionAnimation.play();
+        } else if (shape.reactionAnimation.playState !== "paused")
+          shape.reactionAnimation.pause();
+      }
     }
   }
 
@@ -229,12 +297,18 @@ export function createSiteBackground(svg: SVGSVGElement) {
     pointer.strength = mix(
       pointer.strength,
       awake ? pointer.target : 0,
-      1 - Math.exp(-dt * 4.5),
+      1 - Math.exp(-dt * (awake && pointer.target ? 10 : 4.5)),
     );
     scroll = reduced.matches
       ? 0
       : mix(scroll, window.scrollY, 1 - Math.exp(-dt * 6));
     const near: (Point & { distance: number; alpha: number })[] = [];
+    bursts = bursts.filter(
+      (burst) =>
+        time - burst.born < BACKGROUND.burstLife &&
+        burst.y - window.scrollY > -BACKGROUND.burstRadius.desktop &&
+        burst.y - window.scrollY < height + BACKGROUND.burstRadius.desktop,
+    );
     for (const shape of shapes) {
       const span = height + BACKGROUND.margin * 2;
       let y =
@@ -250,7 +324,9 @@ export function createSiteBackground(svg: SVGSVGElement) {
         if (shape.visible) {
           shape.element.setAttribute("display", "none");
           shape.animation?.pause();
+          shape.reactionAnimation?.pause();
         }
+        attribute(shape.reaction, "opacity", "0");
         shape.visible = false;
         continue;
       }
@@ -265,20 +341,50 @@ export function createSiteBackground(svg: SVGSVGElement) {
       const distance = Math.hypot(dx, dy);
       const influence =
         (1 - clamp(distance / BACKGROUND.radius)) ** 2 * pointer.strength;
-      x += (dx / (distance || 1)) * influence * BACKGROUND.force * shape.depth;
-      y += (dy / (distance || 1)) * influence * BACKGROUND.force * shape.depth;
+      // Radial repulsion with a small tangential pull makes nearby wires orbit.
+      const push = influence * BACKGROUND.force * shape.depth;
+      x += ((dx - dy * 0.3) / (distance || 1)) * push;
+      y += ((dy + dx * 0.3) / (distance || 1)) * push;
+      let shock = 0;
+      for (const burst of bursts) {
+        const progress = clamp((time - burst.born) / BACKGROUND.burstLife);
+        const reach =
+          (mobile
+            ? BACKGROUND.burstRadius.mobile
+            : BACKGROUND.burstRadius.desktop) *
+          (1 - (1 - progress) ** 3);
+        const bx = x - burst.x;
+        const by = y - (burst.y - window.scrollY);
+        const gap = Math.hypot(bx, by);
+        const pulse =
+          Math.exp(-(((gap - reach) / 62) ** 2)) * (1 - progress) ** 1.4;
+        shock += pulse;
+        x += (bx / (gap || 1)) * pulse * BACKGROUND.burstForce * shape.depth;
+        y += (by / (gap || 1)) * pulse * BACKGROUND.burstForce * shape.depth;
+      }
       const edge = clamp(Math.min(x, width - x, y, height - y) / 70);
       const alpha =
         edge *
         intro *
         density(x) *
         (0.32 + shape.depth * 0.45 + influence * 0.2);
-      attribute(
-        shape.element,
-        "transform",
-        `translate(${number(x)} ${number(y)}) rotate(${number(influence * 18)}) scale(${number(0.7 + shape.depth * 0.6)})`,
-      );
+      const transform = `translate(${number(x)} ${number(y)}) rotate(${number(influence * 34 + shock * 24)}) scale(${number(0.7 + shape.depth * 0.6 + influence * 0.15 + shock * 0.1)})`;
+      attribute(shape.element, "transform", transform);
       attribute(shape.element, "opacity", number(alpha));
+      attribute(shape.reaction, "transform", transform);
+      const reactionAlpha = reduced.matches
+        ? 0
+        : edge * intro * Math.min(0.65, influence * 0.9 + shock * 0.65);
+      attribute(shape.reaction, "opacity", number(reactionAlpha));
+      if (shape.reactionAnimation && shape.animation) {
+        if (reactionAlpha > 0.005 && inView && !document.hidden) {
+          if (shape.reactionAnimation.playState !== "running") {
+            shape.reactionAnimation.currentTime = shape.animation.currentTime;
+            shape.reactionAnimation.play();
+          }
+        } else if (shape.reactionAnimation.playState !== "paused")
+          shape.reactionAnimation.pause();
+      }
       if (influence > 0.015)
         near.push({
           x,
@@ -299,17 +405,38 @@ export function createSiteBackground(svg: SVGSVGElement) {
         "d",
         `M${number(pointer.x)} ${number(pointer.y)}L${number(target.x)} ${number(target.y)}`,
       );
-      line.setAttribute(
+      line.setAttribute("opacity", number(target.alpha * 0.26));
+    });
+    attribute(
+      pointerField,
+      "transform",
+      `translate(${number(pointer.x)} ${number(pointer.y)})`,
+    );
+    attribute(
+      pointerField,
+      "opacity",
+      number(reduced.matches ? 0 : pointer.strength * intro),
+    );
+    trail = trail.filter((point) => time - point.born < BACKGROUND.trailLife);
+    trailNodes.forEach((line, index) => {
+      const a = trail[index];
+      const b = trail[index + 1];
+      if (!a || !b || reduced.matches) {
+        attribute(line, "display", "none");
+        return;
+      }
+      line.removeAttribute("display");
+      attribute(
+        line,
+        "d",
+        `M${number(a.x)} ${number(a.y)}L${number(b.x)} ${number(b.y)}`,
+      );
+      attribute(
+        line,
         "opacity",
-        number(target.alpha * 0.45 * density((target.x + pointer.x) / 2)),
+        number((1 - clamp((time - a.born) / BACKGROUND.trailLife)) ** 2 * 0.32),
       );
     });
-    bursts = bursts.filter(
-      (burst) =>
-        time - burst.born < BACKGROUND.burstLife &&
-        burst.y - window.scrollY > -BACKGROUND.burstRadius.desktop &&
-        burst.y - window.scrollY < height + BACKGROUND.burstRadius.desktop,
-    );
     burstNodes.forEach((item, index) => {
       const burst = bursts[index];
       if (!burst) {
@@ -332,17 +459,7 @@ export function createSiteBackground(svg: SVGSVGElement) {
       item.group.setAttribute(
         "opacity",
         number(
-          (Math.sin(Math.PI * progress) *
-            (1 - progress) *
-            0.85 *
-            density(burst.x) *
-            clamp(
-              Math.min(
-                burst.y - window.scrollY,
-                height - burst.y + window.scrollY,
-              ) /
-                (height * 0.1),
-            )) /
+          (Math.sin(Math.PI * progress) * (1 - progress) * 1.35) /
             Math.sqrt(bursts.length),
         ),
       );
@@ -391,6 +508,7 @@ export function createSiteBackground(svg: SVGSVGElement) {
       pointer.strength > 0.001 ||
       (time - activeAt < BACKGROUND.idleAfter && pointer.target > 0) ||
       bursts.length > 0 ||
+      trail.length > 0 ||
       Math.abs(scroll - window.scrollY) > 0.1
     )
       raf = requestAnimationFrame(tick);
@@ -408,11 +526,19 @@ export function createSiteBackground(svg: SVGSVGElement) {
     syncMotion();
     if (disposed || document.hidden || !inView) {
       leave();
+      hideBursts();
+      trail = [];
+      pointer.strength = 0;
+      attribute(pointerField, "opacity", "0");
+      for (const line of [...linkNodes, ...trailNodes])
+        attribute(line, "display", "none");
+      for (const shape of shapes) attribute(shape.reaction, "opacity", "0");
       return;
     }
     if (reduced.matches) {
       leave();
       hideBursts();
+      trail = [];
       pointer.strength = 0;
       render(0);
     } else wake();
@@ -426,17 +552,17 @@ export function createSiteBackground(svg: SVGSVGElement) {
   function move(event: PointerEvent) {
     if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 10)
       down.moved = true;
-    if (
-      reduced.matches ||
-      event.pointerType === "touch" ||
-      !event.isPrimary ||
-      blocked(event)
-    ) {
+    if (reduced.matches || event.pointerType === "touch" || !event.isPrimary) {
       pointer.target = 0;
       return;
     }
     pointer.x = event.clientX;
     pointer.y = event.clientY;
+    const last = trail[trail.length - 1];
+    if (!last || Math.hypot(last.x - pointer.x, last.y - pointer.y) > 7) {
+      trail.push({ x: pointer.x, y: pointer.y, born: time });
+      trail = trail.slice(-(mobile ? 6 : BACKGROUND.maxTrail));
+    }
     pointer.target = 1;
     activeAt = time;
     wake();
@@ -491,7 +617,8 @@ export function createSiteBackground(svg: SVGSVGElement) {
     wake();
   }
   function scrolled() {
-    leave();
+    down = undefined;
+    if (pointer.target > 0) activeAt = time;
     wake();
   }
   function out(event: PointerEvent) {
@@ -507,10 +634,22 @@ export function createSiteBackground(svg: SVGSVGElement) {
   });
   visibility.observe(svg);
   resize();
-  document.addEventListener("pointermove", move, { passive: true });
-  document.addEventListener("pointerdown", press, { passive: true });
-  document.addEventListener("pointerup", release, { passive: true });
-  document.addEventListener("pointercancel", leave, { passive: true });
+  document.addEventListener("pointermove", move, {
+    passive: true,
+    capture: true,
+  });
+  document.addEventListener("pointerdown", press, {
+    passive: true,
+    capture: true,
+  });
+  document.addEventListener("pointerup", release, {
+    passive: true,
+    capture: true,
+  });
+  document.addEventListener("pointercancel", leave, {
+    passive: true,
+    capture: true,
+  });
   window.addEventListener("pointerout", out, { passive: true });
   window.addEventListener("blur", leave);
   window.addEventListener("scroll", scrolled, { passive: true });
@@ -522,19 +661,26 @@ export function createSiteBackground(svg: SVGSVGElement) {
     observer.disconnect();
     window.removeEventListener("resize", resize);
     visibility.disconnect();
-    document.removeEventListener("pointermove", move);
-    document.removeEventListener("pointerdown", press);
-    document.removeEventListener("pointerup", release);
-    document.removeEventListener("pointercancel", leave);
+    document.removeEventListener("pointermove", move, true);
+    document.removeEventListener("pointerdown", press, true);
+    document.removeEventListener("pointerup", release, true);
+    document.removeEventListener("pointercancel", leave, true);
     window.removeEventListener("pointerout", out);
     window.removeEventListener("blur", leave);
     window.removeEventListener("scroll", scrolled);
     document.removeEventListener("visibilitychange", playback);
     reduced.removeEventListener("change", playback);
-    for (const shape of shapes) shape.animation?.cancel();
+    for (const shape of shapes) {
+      shape.animation?.cancel();
+      shape.reactionAnimation?.cancel();
+    }
     objects.replaceChildren();
     links.replaceChildren();
     effects.replaceChildren();
+    reactionLayer.replaceChildren();
+    trailLayer.replaceChildren();
+    attribute(pointerField, "opacity", "0");
+    trail = [];
     bursts = [];
     shapes = [];
     burstNodes = [];
