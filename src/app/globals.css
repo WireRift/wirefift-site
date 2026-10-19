@@ -1799,7 +1799,6 @@ h1 > span {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  border-top: 1px solid var(--line);
   padding-block: 1.5rem;
   font-size: 0.61rem;
   color: var(--muted);
@@ -1813,18 +1812,6 @@ h1 > span {
   display: flex;
   align-items: center;
   gap: 0.3rem;
-}
-.studio-copy .eyebrow {
-  color: var(--muted);
-}
-.studio-card {
-  --logo-cut: var(--surface);
-}
-.studio-copy h2 {
-  letter-spacing: -0.07em !important;
-}
-.studio-explore {
-  color: var(--ink) !important;
 }
 .subpage-header {
   padding-block: var(--section-space) var(--section-gap);
@@ -2966,18 +2953,6 @@ h1 > span {
     gap: 1rem;
     width: 100%;
     justify-content: space-between;
-  }
-  .studio-copy .eyebrow {
-    font-size: 0.47rem !important;
-  }
-  .studio-card {
-    padding: 1.5rem !important;
-  }
-  .studio-explore {
-    font-size: 0.65rem !important;
-  }
-  .studio-signature {
-    font-size: 0.43rem !important;
   }
   .docs-layout {
     grid-template-columns: 1fr;

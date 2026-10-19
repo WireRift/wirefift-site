@@ -1,0 +1,134 @@
+.studio {
+  --studio-line: light-dark(#ded4c2, #373b50);
+  --studio-text: light-dark(#191c32, #f6f0e4);
+  --studio-muted: light-dark(#65605a, #b5b2b9);
+  --studio-accent: light-dark(#333957, #e7d2a4);
+  display: flex;
+  align-items: center;
+  gap: clamp(30px, 4vw, 70px);
+  padding: 35px 45px;
+  border: 1px solid var(--studio-line);
+  border-radius: 7px;
+  background: radial-gradient(
+    ellipse at 15% 30%,
+    color-mix(in srgb, #ed0878 4%, transparent),
+    transparent 65%
+  );
+  color: var(--studio-text);
+  font-family: "Manrope Variable", sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+}
+.oxog-mark {
+  width: 105px;
+  height: auto;
+}
+.studio .eyebrow {
+  display: block;
+  font:
+    8px / 1.6 "SFMono-Regular",
+    Consolas,
+    "Liberation Mono",
+    monospace;
+  letter-spacing: 0.12em;
+  color: var(--studio-accent);
+  margin-bottom: 9px;
+}
+.studio h2 {
+  font:
+    500 35px / 1.12 "Space Grotesk Variable",
+    sans-serif;
+  letter-spacing: -0.045em;
+  margin: 0;
+}
+.studio h2 > span {
+  color: var(--studio-muted);
+}
+.studio p {
+  color: var(--studio-muted);
+  font-size: 11px;
+  line-height: 1.7;
+  margin-top: 9px;
+}
+.studio-link {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-left: auto;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--studio-accent);
+}
+.studio:hover {
+  border-color: #ed0878;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .oxog-mark[data-visible="true"] path {
+    stroke-dasharray: 400;
+    animation: oxog-draw 6s ease-in-out var(--draw-delay, 0s) infinite;
+  }
+  .oxog-mark path:nth-child(2) {
+    --draw-delay: 0.15s;
+  }
+  .oxog-mark path:nth-child(3) {
+    --draw-delay: 0.3s;
+  }
+  .oxog-mark path:nth-child(4) {
+    --draw-delay: 0.45s;
+  }
+}
+@keyframes oxog-draw {
+  0% {
+    stroke-dashoffset: 400;
+  }
+  33%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+@media (max-width: 1100px) {
+  .studio {
+    padding: 30px;
+    gap: 30px;
+  }
+  .studio h2 {
+    font-size: 29px;
+  }
+}
+@media (max-width: 800px) {
+  .studio {
+    flex-wrap: wrap;
+  }
+  .studio-link {
+    width: 100%;
+    margin: 0;
+    justify-content: end;
+  }
+}
+@media (max-width: 520px) {
+  .studio {
+    padding: 25px;
+    gap: 22px;
+  }
+  .studio .oxog-mark {
+    width: 65px;
+  }
+  .studio > div {
+    flex: 1;
+  }
+  .studio .eyebrow {
+    font-size: 6px;
+  }
+  .studio h2 {
+    font-size: 25px;
+  }
+  .studio h2 > span {
+    display: block;
+  }
+  .studio p {
+    font-size: 9px;
+  }
+  .studio-link {
+    font-size: 10px;
+  }
+}
