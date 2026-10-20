@@ -24,12 +24,14 @@ export function Navigation() {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const searchTrigger = useRef<HTMLButtonElement>(null);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
   const results = docs.filter((d) =>
     `${d.title} ${d.description} ${d.sections.map((s) => `${s.title} ${s.text}`).join(" ")}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
   function openSearch() {
+    setMenu(false);
     setQuery("");
     dialog.current?.showModal();
     input.current?.focus();
@@ -49,7 +51,12 @@ export function Navigation() {
           input.current?.focus();
         }
       }
-      if (e.key === "Escape") setMenu(false);
+      if (e.key === "Escape") {
+        const mobileMenu = document.getElementById("mobile-menu");
+        if (mobileMenu?.contains(document.activeElement))
+          menuTrigger.current?.focus();
+        setMenu(false);
+      }
     }
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
@@ -107,6 +114,7 @@ export function Navigation() {
             <button
               type="button"
               className="menu-trigger"
+              ref={menuTrigger}
               aria-expanded={menu}
               aria-controls="mobile-menu"
               aria-label={menu ? "Close menu" : "Open menu"}

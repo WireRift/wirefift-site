@@ -35,7 +35,7 @@ for (const theme of ["light", "dark"] as const) {
       await expect(mark).toHaveCSS("width", width <= 520 ? "65px" : "105px");
       await expect(banner.getByRole("heading")).toHaveCSS(
         "font-family",
-        /Space Grotesk Variable/,
+        /Space Grotesk/,
       );
       expect(
         await page.evaluate(

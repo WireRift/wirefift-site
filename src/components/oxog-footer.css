@@ -15,7 +15,7 @@
     transparent 65%
   );
   color: var(--studio-text);
-  font-family: "Manrope Variable", sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   line-height: 1.7;
 }
@@ -25,19 +25,13 @@
 }
 .studio .eyebrow {
   display: block;
-  font:
-    8px / 1.6 "SFMono-Regular",
-    Consolas,
-    "Liberation Mono",
-    monospace;
+  font: 8px / 1.6 var(--font-ui);
   letter-spacing: 0.12em;
   color: var(--studio-accent);
   margin-bottom: 9px;
 }
 .studio h2 {
-  font:
-    500 35px / 1.12 "Space Grotesk Variable",
-    sans-serif;
+  font: 500 35px / 1.12 var(--font-ui);
   letter-spacing: -0.045em;
   margin: 0;
 }

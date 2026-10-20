@@ -158,7 +158,11 @@ export function InspectorDemo() {
   const [view, setView] = useState("Request");
   const [replayed, setReplayed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const copyGeneration = useRef(0);
   const r = requests[active];
+  const curl = `curl -X ${r.method} 'http://localhost:3000${r.path}'${r.method === "POST" ? ` -H 'Content-Type: application/json' -d '${r.body}'` : ""}`;
   const replayRef = useRef(0);
   return (
     <div className="inspector">
@@ -187,6 +191,9 @@ export function InspectorDemo() {
                 setActive(index);
                 setReplayed(false);
                 setCopied(false);
+                setCopyError(false);
+                setCopying(false);
+                copyGeneration.current += 1;
               }}
             >
               <span
@@ -252,27 +259,42 @@ export function InspectorDemo() {
           </pre>
           <div className="inspector-bottom">
             <span role="status">
-              {replayed
-                ? `Demo replay ${replayRef.current} completed · ${r.status} · no network request sent`
-                : "Sample traffic · nothing is sent from your browser"}
+              {copyError
+                ? "Clipboard unavailable. Select and copy the command below."
+                : copying
+                  ? "Copying cURL command…"
+                  : copied
+                    ? "cURL command copied."
+                    : replayed
+                      ? `Demo replay ${replayRef.current} completed · ${r.status} · no network request sent`
+                      : "Sample traffic · nothing is sent from your browser"}
             </span>
             <button
               type="button"
+              disabled={copying}
+              aria-busy={copying}
               onClick={async () => {
+                const generation = ++copyGeneration.current;
+                setCopying(true);
+                setCopyError(false);
                 try {
-                  await navigator.clipboard.writeText(
-                    `curl -X ${r.method} 'http://localhost:3000${r.path}'${r.method === "POST" ? ` -H 'Content-Type: application/json' -d '${r.body}'` : ""}`,
-                  );
-                  setCopied(true);
+                  await navigator.clipboard.writeText(curl);
+                  if (generation === copyGeneration.current) setCopied(true);
                 } catch {
-                  setCopied(false);
+                  if (generation === copyGeneration.current) {
+                    setCopied(false);
+                    setCopyError(true);
+                  }
+                } finally {
+                  if (generation === copyGeneration.current) setCopying(false);
                 }
               }}
             >
               <Copy size={12} />
-              {copied ? "Copied" : "Copy cURL"}
+              {copying ? "Copying…" : copied ? "Copied" : "Copy cURL"}
             </button>
           </div>
+          {copyError && <Code title="cURL command">{curl}</Code>}
         </div>
       </div>
     </div>

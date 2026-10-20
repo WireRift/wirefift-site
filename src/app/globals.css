@@ -16,7 +16,12 @@
   --amber: #f5b32c;
   --accent-ink: light-dark(#88600b, #f5bd52);
   --logo-cut: var(--paper);
-  --mono: "Geist Mono Variable", monospace;
+  --font-space-grotesk: "Space Grotesk", "Space Grotesk Fallback";
+  --font-jetbrains: "JetBrains Mono", "JetBrains Mono Fallback";
+  --font-quicksand: "Quicksand", "Quicksand Fallback";
+  --font-ui: var(--font-space-grotesk), sans-serif;
+  --mono: var(--font-jetbrains), monospace;
+  --header-height: 5.3rem;
   --oxog-pink: #ed0878;
   --oxog-purple: light-dark(#692d91, #b477e4);
   --layout-max: 1728px;
@@ -46,7 +51,7 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: "Geist Variable", sans-serif;
+  font-family: var(--font-ui);
   font-size: 1rem;
   -webkit-font-smoothing: antialiased;
 }
@@ -184,7 +189,7 @@ pre {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  font: 500 0.65rem / 1.5 var(--mono);
+  font: 500 0.65rem / 1.5 var(--font-ui);
   letter-spacing: 0.09em;
   margin-bottom: 1.5rem;
   color: var(--accent-ink);
@@ -220,7 +225,7 @@ pre {
   border-bottom: 1px solid var(--line);
 }
 .header-inner {
-  height: 5.3rem;
+  height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -309,6 +314,10 @@ pre {
   border-top: 1px solid var(--line);
   padding: 1rem 1.5rem 1.5rem;
   background: var(--paper);
+  max-height: calc(100dvh - var(--header-height));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
 .mobile-menu a {
   display: flex;
@@ -328,6 +337,14 @@ pre {
   max-height: 80dvh;
   box-shadow: 0 20px 100px #0003;
 }
+.search-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+.search-top,
+.search-bottom {
+  flex-shrink: 0;
+}
 .search-dialog::backdrop {
   background: #101a1866;
   backdrop-filter: blur(7px);
@@ -340,6 +357,7 @@ pre {
   border-bottom: 1px solid var(--line);
 }
 .search-top input {
+  min-width: 0;
   width: 100%;
   border: 0;
   outline: none;
@@ -352,8 +370,9 @@ pre {
 }
 .search-results {
   padding: 0.5rem;
-  max-height: 60dvh;
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 .search-results a {
   display: flex;
@@ -367,6 +386,7 @@ pre {
 }
 .search-results a > span {
   flex: 1;
+  min-width: 0;
 }
 .search-results strong {
   display: block;
@@ -394,6 +414,7 @@ pre {
 .search-empty {
   padding: 2rem;
   font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 .hero-stage {
   position: relative;
@@ -1777,9 +1798,7 @@ h1 > span {
   height: 4px;
 }
 .footer-column h3 {
-  font:
-    500 0.67rem "Geist Variable",
-    sans-serif;
+  font: 500 0.67rem var(--font-ui);
   letter-spacing: 0;
   margin: 0.5rem 0 1.3rem;
 }
@@ -1953,6 +1972,8 @@ h1 > span {
 }
 .doc-footer a {
   color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 .doc-pagination {
   display: grid;
@@ -2404,6 +2425,9 @@ h1 > span {
   }
 }
 @media (max-width: 980px) {
+  :root {
+    --header-height: 4.6rem;
+  }
   .release-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2417,7 +2441,7 @@ h1 > span {
     display: block;
   }
   .header-inner {
-    height: 4.6rem;
+    height: var(--header-height);
   }
   .hero {
     grid-template-columns: 1.15fr 1fr;

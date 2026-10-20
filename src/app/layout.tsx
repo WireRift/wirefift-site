@@ -3,10 +3,7 @@ import { Footer } from "@/components/footer";
 import { Navigation } from "@/components/navigation";
 import { SiteBackground } from "@/components/site-background";
 import { description, SITE } from "@/lib/site";
-import "@fontsource-variable/geist";
-import "@fontsource-variable/geist-mono";
-import "@fontsource-variable/manrope";
-import "@fontsource-variable/space-grotesk";
+import "./fonts.css";
 import "./globals.css";
 import "./appearance.css";
 

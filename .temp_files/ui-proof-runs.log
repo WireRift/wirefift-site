@@ -1,0 +1,63 @@
+
+2026-10-20T07:50:29.590Z
+
+Running 7 tests using 2 workers
+
+
+
+
+
+[1/7] [chromium] › tests\design-quality.spec.ts:16:1 › typography uses the requested UI and code fonts
+[2/7] [chromium] › tests\design-quality.spec.ts:41:1 › inspector provides a manual command when clipboard access fails
+[3/7] [chromium] › tests\design-quality.spec.ts:70:1 › inspector ignores a clipboard completion from a previous request
+[4/7] [chromium] › tests\design-quality.spec.ts:105:1 › regression: long search queries wrap without a horizontal scrollbar
+[5/7] [chromium] › tests\design-quality.spec.ts:133:1 › regression: mobile menu Escape returns focus and short screens remain scrollable
+[6/7] [chromium] › tests\design-quality.spec.ts:153:1 › regression: appearance choices fit a short viewport
+[7/7] [chromium] › tests\design-quality.spec.ts:169:1 › regression: narrow header has readable branding and adequate icon targets
+  7 passed (5.0s)
+(node:133928) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:63500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+2026-10-20T07:50:34.837Z
+
+Running 7 tests using 2 workers
+
+
+
+
+
+[1/7] [chromium] › tests\design-quality.spec.ts:16:1 › typography uses the requested UI and code fonts
+[2/7] [chromium] › tests\design-quality.spec.ts:41:1 › inspector provides a manual command when clipboard access fails
+[3/7] [chromium] › tests\design-quality.spec.ts:70:1 › inspector ignores a clipboard completion from a previous request
+[4/7] [chromium] › tests\design-quality.spec.ts:105:1 › regression: long search queries wrap without a horizontal scrollbar
+[5/7] [chromium] › tests\design-quality.spec.ts:133:1 › regression: mobile menu Escape returns focus and short screens remain scrollable
+[6/7] [chromium] › tests\design-quality.spec.ts:153:1 › regression: appearance choices fit a short viewport
+[7/7] [chromium] › tests\design-quality.spec.ts:169:1 › regression: narrow header has readable branding and adequate icon targets
+  7 passed (4.7s)
+(node:111008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:145880) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+2026-10-20T07:50:40.619Z
+
+Running 7 tests using 2 workers
+
+
+
+
+
+[1/7] [chromium] › tests\design-quality.spec.ts:16:1 › typography uses the requested UI and code fonts
+[2/7] [chromium] › tests\design-quality.spec.ts:41:1 › inspector provides a manual command when clipboard access fails
+[3/7] [chromium] › tests\design-quality.spec.ts:70:1 › inspector ignores a clipboard completion from a previous request
+[4/7] [chromium] › tests\design-quality.spec.ts:105:1 › regression: long search queries wrap without a horizontal scrollbar
+[5/7] [chromium] › tests\design-quality.spec.ts:133:1 › regression: mobile menu Escape returns focus and short screens remain scrollable
+[6/7] [chromium] › tests\design-quality.spec.ts:153:1 › regression: appearance choices fit a short viewport
+[7/7] [chromium] › tests\design-quality.spec.ts:169:1 › regression: narrow header has readable branding and adequate icon targets
+  7 passed (5.3s)
+(node:167232) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:125772) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
